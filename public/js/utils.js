@@ -33,6 +33,37 @@
       for (const c of String(text || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
       return palette[h % palette.length];
     },
+    icon(value, fallback) {
+      const legacy = {};
+      legacy['\u{1F4C4}'] = 'fa-file';
+      legacy['\u2B50'] = 'fa-star';
+      legacy['\u{1F3B5}'] = 'fa-music';
+      legacy['\u{1F3AE}'] = 'fa-gamepad';
+      legacy['\u{1F4DA}'] = 'fa-book';
+      legacy['\u{1F6D2}'] = 'fa-cart-shopping';
+      legacy['\u{1F3C3}'] = 'fa-person-running';
+      legacy['\u{1F4A1}'] = 'fa-lightbulb';
+      legacy['\u{1F516}'] = 'fa-bookmark';
+      legacy['\u{1F552}'] = 'fa-clock';
+      legacy['\u{1F4DD}'] = 'fa-note-sticky';
+      legacy['\u2705'] = 'fa-list-check';
+      legacy['\u26C5'] = 'fa-cloud-sun';
+      legacy['\u{1F4F0}'] = 'fa-newspaper';
+      legacy['\u{1F5D3}\uFE0F'] = 'fa-calendar-days';
+      legacy['\u{1F5D3}'] = 'fa-calendar-days';
+      legacy['\u{1F4AC}'] = 'fa-comment-dots';
+      legacy['\u23F1\uFE0F'] = 'fa-stopwatch';
+      legacy['\u23F1'] = 'fa-stopwatch';
+      legacy['\u{1F9E9}'] = 'fa-puzzle-piece';
+      const v = String(value || '').trim();
+      if (/^fa[bsr]?\s+fa-/.test(v)) return v;
+      if (legacy[v]) return 'fa-solid ' + legacy[v];
+      if (/^fa-/.test(v)) return 'fa-solid ' + v;
+      return 'fa-solid ' + (fallback || 'fa-file');
+    },
+    iconHtml(value, fallback) {
+      return '<i class="' + U.esc(U.icon(value, fallback)) + '" aria-hidden="true"></i>';
+    },
     safeUrl(url) {
       const value = String(url || '').trim();
       if (!value) return '#';

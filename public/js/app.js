@@ -116,13 +116,23 @@
   }
 
   /* ---------------- rendering ---------------- */
+  function applySidebar() {
+    const collapsed = !!(Store.state && Store.state.sidebarCollapsed);
+    document.body.classList.toggle('sidebar-collapsed', collapsed);
+    const btn = $('sidebarToggle');
+    if (btn) {
+      const label = collapsed ? 'Espandi barra laterale' : 'Comprimi barra laterale';
+      btn.title = label;
+      btn.setAttribute('aria-label', label);
+      $('sidebarToggleIcon').className = 'fa-solid ' + (collapsed ? 'fa-angles-right' : 'fa-angles-left');
+    }
+  }
+
   function applyState() {
     const s = Store.state;
     if (!s) return;
     document.body.dataset.theme = s.theme === 'dark' ? 'dark' : 'light';
     document.body.dataset.density = s.density || 'comfortable';
-    const wall = Store.WALLPAPERS[s.wallpaper] || Store.WALLPAPERS.aurora;
-    document.body.style.setProperty('--wallpaper', wall);
     const accent = s.accent || '#2563eb';
     document.body.style.setProperty('--accent', accent);
     document.body.style.setProperty('--accent-dark', shade(accent, -22));
@@ -133,10 +143,11 @@
     $('menuName').textContent = s.name || 'Utente';
     $('menuCode').textContent = Store.code || '——————';
     $('sideName').textContent = s.name || 'Utente';
-    $('sideCode').innerHTML = U.esc(Store.code || '——————') + ' <span aria-hidden="true">⧉</span>';
+    $('sideCode').innerHTML = U.esc(Store.code || '——————') + ' <i class="fa-solid fa-copy" aria-hidden="true"></i>';
     const engine = Store.ENGINES[s.searchEngine] || Store.ENGINES.google;
     $('engineInitial').textContent = engine.initial;
-    $('themeToggle').textContent = s.theme === 'dark' ? '☀️' : '☾';
+    $('themeIcon').className = 'fa-solid ' + (s.theme === 'dark' ? 'fa-sun' : 'fa-moon');
+    applySidebar();
   }
 
   function shade(hex, amount) {
@@ -158,10 +169,10 @@
   function renderPages() {
     const list = $('pagesList');
     list.innerHTML = Store.state.pages.map(p =>
-      '<button class="page-item' + (p.id === Store.state.activePageId ? ' active' : '') + '" data-page-id="' + U.esc(p.id) + '" draggable="true">' +
-      '<span class="pg-icon">' + U.esc(p.icon || '📄') + '</span>' +
+      '<button class="page-item' + (p.id === Store.state.activePageId ? ' active' : '') + '" data-page-id="' + U.esc(p.id) + '" draggable="true" title="' + U.esc(p.name) + '">' +
+      '<span class="pg-icon">' + U.iconHtml(p.icon, 'fa-file') + '</span>' +
       '<span class="pg-name">' + U.esc(p.name) + '</span>' +
-      '<span class="pg-del" data-del-page="' + U.esc(p.id) + '" title="Elimina pagina">×</span></button>'
+      '<span class="pg-del" data-del-page="' + U.esc(p.id) + '" title="Elimina pagina"><i class="fa-solid fa-xmark" aria-hidden="true"></i></span></button>'
     ).join('');
   }
 
@@ -173,7 +184,7 @@
     const grid = $('widgetGrid');
     grid.className = 'widget-grid' + (page.columns === 6 ? ' cols-6' : '');
     grid.innerHTML = page.widgets.map(w => widgetCard(w)).join('') +
-      '<button class="add-widget-tile" id="addWidgetTile"><span class="plus">＋</span><span>Aggiungi widget</span></button>';
+      '<button class="add-widget-tile" id="addWidgetTile"><span class="plus"><i class="fa-solid fa-plus" aria-hidden="true"></i></span><span>Aggiungi widget</span></button>';
 
     grid.querySelectorAll('.widget').forEach(card => {
       const w = page.widgets.find(x => x.id === card.dataset.widgetId);
@@ -184,25 +195,25 @@
   }
 
   function widgetCard(w) {
-    const meta = W.TYPES.find(t => t.type === w.type) || { icon: '🧩' };
+    const meta = W.TYPES.find(t => t.type === w.type) || { icon: 'fa-puzzle-piece' };
     const menu =
       '<div class="widget-menu hidden" data-menu-for="' + U.esc(w.id) + '">' +
-      '<button data-waction="edit">✏️ Impostazioni widget</button>' +
+      '<button data-waction="edit"><i class="fa-solid fa-pen" aria-hidden="true"></i> Impostazioni widget</button>' +
       '<div class="menu-label">Dimensione</div>' +
       ['sm:Piccolo', 'md:Medio', 'lg:Grande', 'xl:Intero'].map(x => {
         const [size, label] = x.split(':');
-        return '<button data-waction="size" data-size="' + size + '">' + (w.size === size ? '✓ ' : '　') + label + '</button>';
+        return '<button data-waction="size" data-size="' + size + '">' + (w.size === size ? '<i class="fa-solid fa-check" aria-hidden="true"></i> ' : '') + label + '</button>';
       }).join('') +
       '<div class="menu-sep"></div>' +
-      '<button data-waction="duplicate">⧉ Duplica</button>' +
-      '<button data-waction="remove">🗑 Rimuovi</button></div>';
+      '<button data-waction="duplicate"><i class="fa-solid fa-copy" aria-hidden="true"></i> Duplica</button>' +
+      '<button data-waction="remove"><i class="fa-solid fa-trash" aria-hidden="true"></i> Rimuovi</button></div>';
 
     return '<section class="widget size-' + U.esc(w.size || 'md') + '" data-widget-id="' + U.esc(w.id) + '">' +
       '<div class="widget-head">' +
-      '<span class="widget-drag" draggable="true" data-drag-widget="' + U.esc(w.id) + '" title="Trascina per riordinare">⠿</span>' +
-      '<span class="widget-icon">' + meta.icon + '</span>' +
+      '<span class="widget-drag" draggable="true" data-drag-widget="' + U.esc(w.id) + '" title="Trascina per riordinare"><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i></span>' +
+      '<span class="widget-icon">' + W.icon(meta.icon) + '</span>' +
       '<span class="widget-title">' + U.esc(w.title) + '</span>' +
-      '<button class="widget-menu-btn" data-wk-menu="' + U.esc(w.id) + '" title="Opzioni">⋯</button>' +
+      '<button class="widget-menu-btn" data-wk-menu="' + U.esc(w.id) + '" title="Opzioni"><i class="fa-solid fa-ellipsis" aria-hidden="true"></i></button>' +
       menu + '</div>' +
       '<div class="widget-body' + (Store.state.density === 'compact' ? ' compact' : '') + '">' + W.renderBody(w, false) + '</div></section>';
   }
@@ -234,7 +245,7 @@
   }
   function closeModal() { $('modalRoot').innerHTML = ''; modalEl = null; }
   function modalHead(title) {
-    return '<div class="modal-head"><h2>' + U.esc(title) + '</h2><button class="modal-close" data-modal-close aria-label="Chiudi">×</button></div>';
+    return '<div class="modal-head"><h2>' + U.esc(title) + '</h2><button class="modal-close" data-modal-close aria-label="Chiudi"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>';
   }
 
   function openWidgetPicker() {
@@ -242,7 +253,7 @@
     const m = openModal(modalHead('Aggiungi un widget') +
       '<div class="modal-body"><p class="hint" style="margin-top:0">Scegli un widget da aggiungere a “' + U.esc(page.name) + '”.</p>' +
       '<div class="widget-picker">' + W.TYPES.map(t =>
-        '<button class="widget-pick" data-pick="' + t.type + '"><span class="pic">' + t.icon + '</span><strong>' + U.esc(t.label) + '</strong><small>' + U.esc(t.desc) + '</small></button>'
+        '<button class="widget-pick" data-pick="' + t.type + '"><span class="pic">' + W.icon(t.icon) + '</span><strong>' + U.esc(t.label) + '</strong><small>' + U.esc(t.desc) + '</small></button>'
       ).join('') + '</div></div>', true);
     m.querySelectorAll('[data-pick]').forEach(btn => btn.addEventListener('click', () => {
       page.widgets.push(W.make(btn.dataset.pick));
@@ -259,7 +270,7 @@
     if (w.type === 'links') {
       const rows = (c.links || []).map((l, i) => linkRow(l, i)).join('');
       extra = '<div class="form-row"><label>Collegamenti</label><div class="link-rows" id="linkRows" style="grid-template-columns:1fr 1.3fr 38px 34px">' +
-        rows + '</div><button class="link-btn" type="button" id="addLinkRow" style="margin-top:8px">＋ Aggiungi riga</button></div>';
+        rows + '</div><button class="link-btn" type="button" id="addLinkRow" style="margin-top:8px"><i class="fa-solid fa-plus" aria-hidden="true"></i> Aggiungi riga</button></div>';
     } else if (w.type === 'weather') {
       extra = '<div class="form-row"><label>Città</label><input type="text" id="wCity" value="' + U.esc(c.city || 'Roma') + '" /></div>';
     } else if (w.type === 'feed') {
@@ -304,7 +315,7 @@
       '<input class="l-title" type="text" value="' + U.esc(l.title || '') + '" placeholder="Titolo" />' +
       '<input class="l-url" type="text" value="' + U.esc(l.url || '') + '" placeholder="https://…" />' +
       '<input class="l-color" type="color" value="' + U.esc(l.color || '#2563eb') + '" />' +
-      '<button type="button" data-row-del title="Elimina">×</button></div>';
+      '<button type="button" data-row-del title="Elimina"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>';
   }
 
   APP.openLinkEditor = function (widgetId, index) {
@@ -372,14 +383,13 @@
     } else if (tab === 'appearance') {
       host.innerHTML =
         '<div class="form-row"><label>Tema</label><div class="segmented" id="segTheme">' +
-        ['light:☀️ Chiaro', 'dark:☾ Scuro'].map(x => { const [v, l] = x.split(':'); return '<button data-value="' + v + '" class="' + (s.theme === v ? 'active' : '') + '">' + l + '</button>'; }).join('') +
+        [['light', 'fa-sun', 'Chiaro'], ['dark', 'fa-moon', 'Scuro']].map(([v, ic, l]) =>
+          '<button data-value="' + v + '" class="' + (s.theme === v ? 'active' : '') + '"><i class="fa-solid ' + ic + '" aria-hidden="true"></i> ' + l + '</button>').join('') +
         '</div></div>' +
         '<div class="form-row"><label>Colore principale</label><div class="swatches" id="accentSwatches">' +
         Store.ACCENTS.map(a => '<button class="swatch' + (s.accent === a ? ' active' : '') + '" data-accent="' + a + '" style="background:' + a + '" aria-label="' + a + '"></button>').join('') +
         '</div></div>' +
-        '<div class="form-row"><label>Sfondo</label><div class="wallpapers" id="wallpapers">' +
-        Object.keys(Store.WALLPAPERS).map(k => '<button class="wallpaper' + (s.wallpaper === k ? ' active' : '') + '" data-wall="' + k + '" style="background:' + Store.WALLPAPERS[k] + '" title="' + k + '"></button>').join('') +
-        '</div></div>' +
+        '<p class="hint" style="margin-top:-6px">Lo sfondo è monocromatico: bianco tenue di giorno, nero tenue di notte.</p>' +
         '<div class="form-row"><label>Densità widget</label><div class="segmented" id="segDensity">' +
         ['comfortable:Comoda', 'compact:Compatta'].map(x => { const [v, l] = x.split(':'); return '<button data-value="' + v + '" class="' + ((s.density || 'comfortable') === v ? 'active' : '') + '">' + l + '</button>'; }).join('') +
         '</div></div>';
@@ -394,18 +404,13 @@
         host.querySelectorAll('[data-accent]').forEach(x => x.classList.toggle('active', x === b));
         Store.markDirty(); applyState();
       }));
-      host.querySelectorAll('[data-wall]').forEach(b => b.addEventListener('click', () => {
-        s.wallpaper = b.dataset.wall;
-        host.querySelectorAll('[data-wall]').forEach(x => x.classList.toggle('active', x === b));
-        Store.markDirty(); applyState();
-      }));
     } else {
       host.innerHTML =
         '<div class="form-row"><label>Codice personale (6 caratteri)</label><div class="share-box"><input id="dataCode" value="' + U.esc(Store.code) + '" readonly /><button class="btn btn-ghost btn-sm" id="dataCopy">Copia</button></div>' +
         '<p class="hint">Salva questo codice: inserendolo su un altro dispositivo ritroverai tutti i tuoi dati.</p></div>' +
         '<div class="form-row"><label>Backup</label><div style="display:flex;gap:8px;flex-wrap:wrap">' +
-        '<button class="btn btn-ghost btn-sm" id="dataExport">⬇ Esporta JSON</button>' +
-        '<button class="btn btn-ghost btn-sm" id="dataImport">⬆ Importa JSON</button></div></div>' +
+        '<button class="btn btn-ghost btn-sm" id="dataExport"><i class="fa-solid fa-download" aria-hidden="true"></i> Esporta JSON</button>' +
+        '<button class="btn btn-ghost btn-sm" id="dataImport"><i class="fa-solid fa-upload" aria-hidden="true"></i> Importa JSON</button></div></div>' +
         '<div class="form-row"><label>Account</label><div style="display:flex;gap:8px;flex-wrap:wrap">' +
         '<button class="btn btn-ghost btn-sm" id="dataLogout">Esci</button>' +
         '<button class="btn btn-danger btn-sm" id="dataDelete">Elimina profilo</button></div></div>';
@@ -421,8 +426,8 @@
     const m = openModal(modalHead('Importa / Esporta') +
       '<div class="modal-body"><p class="hint" style="margin-top:0">Esporta una copia completa della tua pagina oppure importa un file JSON creato in precedenza.</p>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">' +
-      '<button class="btn btn-primary btn-sm" id="bkExport">⬇ Esporta JSON</button>' +
-      '<button class="btn btn-ghost btn-sm" id="bkImport">⬆ Importa JSON</button></div>' +
+      '<button class="btn btn-primary btn-sm" id="bkExport"><i class="fa-solid fa-download" aria-hidden="true"></i> Esporta JSON</button>' +
+      '<button class="btn btn-ghost btn-sm" id="bkImport"><i class="fa-solid fa-upload" aria-hidden="true"></i> Importa JSON</button></div>' +
       '<input type="file" id="bkFile" accept="application/json,.json" hidden /></div>');
     $('bkExport').addEventListener('click', exportData);
     $('bkImport').addEventListener('click', () => $('bkFile').click());
@@ -502,11 +507,11 @@
   function openHelp() {
     openModal(modalHead('Come funziona OpenStart') +
       '<div class="modal-body"><p style="font-size:13px;line-height:1.7;margin-top:0">' +
-      '• <strong>Pagine</strong>: usa la barra laterale per creare, rinominare (doppio clic) ed eliminare pagine.<br>' +
-      '• <strong>Widget</strong>: aggiungili con ＋ Widget, trascinali dalla maniglia ⠿ per riordinarli e usa ⋯ per dimensioni, duplicazione e rimozione.<br>' +
-      '• <strong>Collegamenti</strong>: clicca ＋ per aggiungerli, clic destro per modificarli, trascinali per riordinarli.<br>' +
-      '• <strong>Codice</strong>: lo trovi nella sidebar e in Impostazioni → Dati. Ti serve per accedere da un altro dispositivo.<br>' +
-      '• <strong>Sincronizzazione</strong>: le modifiche vengono salvate automaticamente su Supabase; se sei offline restano nel browser e vengono inviate alla riconnessione.' +
+      '<i class="fa-solid fa-file" aria-hidden="true"></i> <strong>Pagine</strong>: usa la barra laterale per creare, rinominare (doppio clic) ed eliminare pagine.<br>' +
+      '<i class="fa-solid fa-puzzle-piece" aria-hidden="true"></i> <strong>Widget</strong>: aggiungili con il pulsante Widget, trascinali dalla maniglia per riordinarli e usa il menu Opzioni per dimensioni, duplicazione e rimozione.<br>' +
+      '<i class="fa-solid fa-bookmark" aria-hidden="true"></i> <strong>Collegamenti</strong>: clicca il pulsante Aggiungi, clic destro per modificarli, trascinali per riordinarli.<br>' +
+      '<i class="fa-solid fa-key" aria-hidden="true"></i> <strong>Codice</strong>: lo trovi nella sidebar e in Impostazioni, scheda Dati. Ti serve per accedere da un altro dispositivo.<br>' +
+      '<i class="fa-solid fa-rotate" aria-hidden="true"></i> <strong>Sincronizzazione</strong>: le modifiche vengono salvate automaticamente su Supabase; se sei offline restano nel browser e vengono inviate alla riconnessione.' +
       '</p></div>');
   }
 
@@ -536,9 +541,9 @@
       $('shareTitle').textContent = row.title || data.name || 'Pagina condivisa';
       const widgets = Array.isArray(data.widgets) ? data.widgets : [];
       $('shareGrid').innerHTML = widgets.map(w => {
-        const meta = W.TYPES.find(t => t.type === w.type) || { icon: '🧩' };
+        const meta = W.TYPES.find(t => t.type === w.type) || { icon: 'fa-puzzle-piece' };
         return '<section class="widget size-' + U.esc(w.size || 'md') + '">' +
-          '<div class="widget-head"><span class="widget-icon">' + meta.icon + '</span><span class="widget-title">' + U.esc(w.title) + '</span></div>' +
+          '<div class="widget-head"><span class="widget-icon">' + W.icon(meta.icon) + '</span><span class="widget-title">' + U.esc(w.title) + '</span></div>' +
           '<div class="widget-body">' + W.renderBody(w, true) + '</div></section>';
       }).join('') || '<p class="hint">Questa pagina non contiene widget.</p>';
       $('shareGrid').querySelectorAll('.widget').forEach((card, i) => W.bindBody(card.querySelector('.widget-body'), widgets[i], true));
@@ -572,6 +577,11 @@
     document.addEventListener('os:savestate', (e) => setSaveState(e.detail.status, e.detail.message));
 
     $('menuToggle').addEventListener('click', () => $('sidebar').classList.toggle('open'));
+    $('sidebarToggle').addEventListener('click', () => {
+      Store.state.sidebarCollapsed = !Store.state.sidebarCollapsed;
+      Store.markDirty();
+      applySidebar();
+    });
     $('addPageBtn').addEventListener('click', addPage);
     $('pagesList').addEventListener('click', (e) => {
       const del = e.target.closest('[data-del-page]');
@@ -760,7 +770,7 @@
   function addPage() {
     const name = prompt('Nome della nuova pagina', 'Nuova pagina');
     if (!name || !name.trim()) return;
-    const icons = ['📄', '⭐', '🎵', '🎮', '📚', '🛒', '🏃', '💡'];
+    const icons = ['fa-file', 'fa-star', 'fa-music', 'fa-gamepad', 'fa-book', 'fa-cart-shopping', 'fa-person-running', 'fa-lightbulb'];
     const page = { id: U.uid('p'), name: name.trim().slice(0, 40), icon: icons[Store.state.pages.length % icons.length], columns: 12, widgets: [] };
     Store.state.pages.push(page);
     Store.state.activePageId = page.id;

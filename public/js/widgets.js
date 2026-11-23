@@ -5,15 +5,15 @@
   const cfg = window.OS_CONFIG;
 
   const TYPES = [
-    { type: 'links', label: 'Collegamenti', icon: '🔖', desc: 'Griglia di siti e scorciatoie', title: 'Collegamenti', size: 'md' },
-    { type: 'clock', label: 'Orologio', icon: '🕒', desc: 'Ora e data aggiornate', title: 'Orologio', size: 'sm' },
-    { type: 'notes', label: 'Note', icon: '📝', desc: 'Un blocco di testo personale', title: 'Note', size: 'md' },
-    { type: 'todo', label: 'Da fare', icon: '✅', desc: 'Lista attività con progresso', title: 'Da fare', size: 'md' },
-    { type: 'weather', label: 'Meteo', icon: '⛅', desc: 'Previsioni per la tua città', title: 'Meteo', size: 'md' },
-    { type: 'feed', label: 'Feed RSS', icon: '📰', desc: 'Ultime notizie da un feed', title: 'Notizie', size: 'lg' },
-    { type: 'calendar', label: 'Calendario', icon: '🗓️', desc: 'Mini calendario mensile', title: 'Calendario', size: 'md' },
-    { type: 'quote', label: 'Citazione', icon: '💬', desc: 'Una frase ogni giorno', title: 'Citazione del giorno', size: 'sm' },
-    { type: 'timer', label: 'Timer', icon: '⏱️', desc: 'Conto alla rovescia / pomodoro', title: 'Timer', size: 'sm' }
+    { type: 'links', label: 'Collegamenti', icon: 'fa-bookmark', desc: 'Griglia di siti e scorciatoie', title: 'Collegamenti', size: 'md' },
+    { type: 'clock', label: 'Orologio', icon: 'fa-clock', desc: 'Ora e data aggiornate', title: 'Orologio', size: 'sm' },
+    { type: 'notes', label: 'Note', icon: 'fa-note-sticky', desc: 'Un blocco di testo personale', title: 'Note', size: 'md' },
+    { type: 'todo', label: 'Da fare', icon: 'fa-list-check', desc: 'Lista attività con progresso', title: 'Da fare', size: 'md' },
+    { type: 'weather', label: 'Meteo', icon: 'fa-cloud-sun', desc: 'Previsioni per la tua città', title: 'Meteo', size: 'md' },
+    { type: 'feed', label: 'Feed RSS', icon: 'fa-newspaper', desc: 'Ultime notizie da un feed', title: 'Notizie', size: 'lg' },
+    { type: 'calendar', label: 'Calendario', icon: 'fa-calendar-days', desc: 'Mini calendario mensile', title: 'Calendario', size: 'md' },
+    { type: 'quote', label: 'Citazione', icon: 'fa-comment-dots', desc: 'Una frase ogni giorno', title: 'Citazione del giorno', size: 'sm' },
+    { type: 'timer', label: 'Timer', icon: 'fa-stopwatch', desc: 'Conto alla rovescia / pomodoro', title: 'Timer', size: 'sm' }
   ];
 
   const QUOTES = [
@@ -26,13 +26,13 @@
   ];
 
   const WEATHER_CODES = {
-    0: ['☀️', 'sereno'], 1: ['🌤️', 'principalmente sereno'], 2: ['⛅', 'parzialmente nuvoloso'],
-    3: ['☁️', 'nuvoloso'], 45: ['🌫️', 'nebbia'], 48: ['🌫️', 'nebbia'],
-    51: ['🌦️', 'pioviggine'], 53: ['🌦️', 'pioviggine'], 55: ['🌧️', 'pioviggine'],
-    61: ['🌧️', 'pioggia'], 63: ['🌧️', 'pioggia'], 65: ['🌧️', 'pioggia forte'],
-    71: ['🌨️', 'neve'], 73: ['🌨️', 'neve'], 75: ['❄️', 'neve forte'],
-    80: ['🌦️', 'rovesci'], 81: ['🌧️', 'rovesci'], 82: ['⛈️', 'rovesci forti'],
-    95: ['⛈️', 'temporale'], 96: ['⛈️', 'temporale'], 99: ['⛈️', 'temporale']
+    0: ['fa-sun', 'sereno'], 1: ['fa-cloud-sun', 'principalmente sereno'], 2: ['fa-cloud-sun', 'parzialmente nuvoloso'],
+    3: ['fa-cloud', 'nuvoloso'], 45: ['fa-smog', 'nebbia'], 48: ['fa-smog', 'nebbia'],
+    51: ['fa-cloud-rain', 'pioviggine'], 53: ['fa-cloud-rain', 'pioviggine'], 55: ['fa-cloud-showers-heavy', 'pioviggine'],
+    61: ['fa-cloud-rain', 'pioggia'], 63: ['fa-cloud-rain', 'pioggia'], 65: ['fa-cloud-showers-heavy', 'pioggia forte'],
+    71: ['fa-snowflake', 'neve'], 73: ['fa-snowflake', 'neve'], 75: ['fa-snowflake', 'neve forte'],
+    80: ['fa-cloud-showers-heavy', 'rovesci'], 81: ['fa-cloud-showers-heavy', 'rovesci'], 82: ['fa-cloud-bolt', 'rovesci forti'],
+    95: ['fa-bolt', 'temporale'], 96: ['fa-bolt', 'temporale'], 99: ['fa-bolt', 'temporale']
   };
 
   const timers = Object.create(null);
@@ -54,6 +54,19 @@
     return { id: U.uid('w'), type: t.type, title: t.title, size: t.size, config: defaults(t.type) };
   }
 
+  function icon(name, extra) {
+    return '<i class="fa-solid ' + U.esc(name || 'fa-puzzle-piece') + (extra ? ' ' + U.esc(extra) : '') + '" aria-hidden="true"></i>';
+  }
+
+  function empty(name, text) {
+    return '<div class="empty-widget"><span class="big">' + icon(name) + '</span><span>' + U.esc(text) + '</span></div>';
+  }
+
+  function fmtTime(sec) {
+    sec = Math.max(0, Math.floor(sec));
+    return String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
+  }
+
   function renderBody(widget, readonly) {
     const c = widget.config || {};
     switch (widget.type) {
@@ -63,12 +76,12 @@
 
       case 'links': {
         const links = Array.isArray(c.links) ? c.links : [];
-        if (!links.length && readonly) return empty('🔖', 'Nessun collegamento');
+        if (!links.length && readonly) return empty('fa-bookmark', 'Nessun collegamento');
         return '<div class="link-grid">' + links.map((l, i) =>
           '<a class="link-tile" href="' + U.esc(U.safeExternal(l.url)) + '" target="_blank" rel="noopener noreferrer" data-link-index="' + i + '"' + (readonly ? ' tabindex="-1"' : ' draggable="true"') + '>' +
           '<span class="link-icon" style="--tile:' + U.esc(l.color || U.colorFrom(l.url)) + '">' + U.esc((l.title || '?').trim().charAt(0)) + '</span>' +
           '<span class="link-title">' + U.esc(l.title) + '</span></a>'
-        ).join('') + (readonly ? '' : '<button class="link-add" data-wk="add-link" title="Aggiungi collegamento">＋</button>') + '</div>';
+        ).join('') + (readonly ? '' : '<button class="link-add" data-wk="add-link" title="Aggiungi collegamento">' + icon('fa-plus') + '</button>') + '</div>';
       }
 
       case 'notes':
@@ -78,21 +91,21 @@
         const items = Array.isArray(c.items) ? c.items : [];
         const done = items.filter(x => x.done).length;
         const pct = items.length ? Math.round(done / items.length * 100) : 0;
-        return (readonly ? '' : '<form class="todo-add" data-wk="todo-form"><input type="text" name="task" placeholder="Nuova attività…" maxlength="120" required /><button type="submit">＋</button></form>') +
+        return (readonly ? '' : '<form class="todo-add" data-wk="todo-form"><input type="text" name="task" placeholder="Nuova attività…" maxlength="120" required /><button type="submit" title="Aggiungi attività">' + icon('fa-plus') + '</button></form>') +
           (items.length ? '<ul class="todo-list">' + items.map((it, i) =>
             '<li class="todo-item' + (it.done ? ' done' : '') + '">' +
             '<input type="checkbox" data-wk="todo-toggle" data-index="' + i + '"' + (it.done ? ' checked' : '') + (readonly ? ' disabled' : '') + ' />' +
             '<span>' + U.esc(it.text) + '</span>' +
-            (readonly ? '' : '<button class="todo-del" data-wk="todo-del" data-index="' + i + '" title="Elimina">×</button>') + '</li>').join('') + '</ul>' : empty('✅', 'Nessuna attività')) +
+            (readonly ? '' : '<button class="todo-del" data-wk="todo-del" data-index="' + i + '" title="Elimina">' + icon('fa-xmark') + '</button>') + '</li>').join('') + '</ul>' : empty('fa-list-check', 'Nessuna attività')) +
           (items.length ? '<div class="todo-progress"><i style="width:' + pct + '%"></i></div>' : '');
       }
 
       case 'weather':
-        return '<div data-weather-root><div class="weather-main"><div class="weather-icon">⏳</div><div><div class="weather-desc">Caricamento meteo…</div><div class="weather-place">' + U.esc(c.city || 'Roma') + '</div></div></div></div>' +
+        return '<div data-weather-root><div class="weather-main"><div class="weather-icon">' + icon('fa-hourglass') + '</div><div><div class="weather-desc">Caricamento meteo…</div><div class="weather-place">' + U.esc(c.city || 'Roma') + '</div></div></div></div>' +
           (readonly ? '' : '<form class="inline-form" data-wk="weather-form" style="margin-top:12px"><input type="text" name="city" value="' + U.esc(c.city || 'Roma') + '" placeholder="Città" required /><button class="btn btn-ghost btn-sm" type="submit">Aggiorna</button></form>');
 
       case 'feed':
-        return '<div data-feed-root>' + (c.url ? '<div class="hint">Caricamento feed…</div>' : empty('📰', 'Imposta un URL RSS nelle impostazioni del widget')) + '</div>' +
+        return '<div data-feed-root>' + (c.url ? '<div class="hint">Caricamento feed…</div>' : empty('fa-newspaper', 'Imposta un URL RSS nelle impostazioni del widget')) + '</div>' +
           (readonly ? '' : '<form class="inline-form" data-wk="feed-form" style="margin-top:10px"><input type="url" name="url" value="' + U.esc(c.url || '') + '" placeholder="https://…/feed.xml" required /><button class="btn btn-ghost btn-sm" type="submit">Carica</button></form>');
 
       case 'calendar':
@@ -110,17 +123,8 @@
       }
 
       default:
-        return empty('🧩', 'Widget sconosciuto');
+        return empty('fa-puzzle-piece', 'Widget sconosciuto');
     }
-  }
-
-  function empty(icon, text) {
-    return '<div class="empty-widget"><span class="big">' + icon + '</span><span>' + U.esc(text) + '</span></div>';
-  }
-
-  function fmtTime(sec) {
-    sec = Math.max(0, Math.floor(sec));
-    return String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
   }
 
   function renderCalendar(id) {
@@ -137,9 +141,9 @@
       cells += '<span class="day' + (isToday ? ' today' : '') + '">' + i + '</span>';
     }
     return '<div class="calendar-head">' +
-      '<button class="calendar-nav" data-wk="cal-prev" aria-label="Mese precedente">‹</button>' +
+      '<button class="calendar-nav" data-wk="cal-prev" aria-label="Mese precedente">' + icon('fa-chevron-left') + '</button>' +
       '<strong>' + U.esc(title) + '</strong>' +
-      '<button class="calendar-nav" data-wk="cal-next" aria-label="Mese successivo">›</button></div>' +
+      '<button class="calendar-nav" data-wk="cal-next" aria-label="Mese successivo">' + icon('fa-chevron-right') + '</button></div>' +
       '<div class="calendar-grid">' + ['L', 'M', 'M', 'G', 'V', 'S', 'D'].map(x => '<span class="dow">' + x + '</span>').join('') + cells + '</div>';
   }
 
@@ -256,14 +260,14 @@
       const res = await fetch(api);
       const data = await res.json();
       const code = data.current.weather_code;
-      const info = WEATHER_CODES[code] || ['🌡️', 'n/d'];
-      root.innerHTML = '<div class="weather-main"><div class="weather-icon">' + info[0] + '</div><div>' +
+      const info = WEATHER_CODES[code] || ['fa-temperature-high', 'n/d'];
+      root.innerHTML = '<div class="weather-main"><div class="weather-icon">' + icon(info[0]) + '</div><div>' +
         '<div class="weather-temp">' + Math.round(data.current.temperature_2m) + '°</div>' +
         '<div class="weather-desc">' + U.esc(info[1]) + '</div>' +
         '<div class="weather-place">' + U.esc(place.name) + (place.country ? ', ' + U.esc(place.country) : '') + '</div></div></div>' +
         '<div class="weather-extra"><span>Min ' + Math.round(data.daily.temperature_2m_min[0]) + '°</span><span>Max ' + Math.round(data.daily.temperature_2m_max[0]) + '°</span></div>';
     } catch (err) {
-      root.innerHTML = '<div class="weather-main"><div class="weather-icon">⚠️</div><div><div class="weather-desc">Meteo non disponibile</div>' +
+      root.innerHTML = '<div class="weather-main"><div class="weather-icon">' + icon('fa-triangle-exclamation') + '</div><div><div class="weather-desc">Meteo non disponibile</div>' +
         '<div class="weather-place">' + U.esc(err.message) + '</div></div></div>';
     }
   }
@@ -277,12 +281,12 @@
       const data = await res.json();
       const items = (data.items || []).slice(0, 6);
       config.items = items;
-      if (!items.length) { root.innerHTML = empty('📰', 'Nessun articolo trovato'); return; }
+      if (!items.length) { root.innerHTML = empty('fa-newspaper', 'Nessun articolo trovato'); return; }
       root.innerHTML = '<ul class="feed-list">' + items.map(it =>
         '<li><a href="' + U.esc(U.safeExternal(it.link)) + '" target="_blank" rel="noopener noreferrer">' + U.esc(it.title) + '</a>' +
         (it.pubDate ? '<small>' + U.esc(it.pubDate) + '</small>' : '') + '</li>').join('') + '</ul>';
     } catch (err) {
-      root.innerHTML = empty('⚠️', 'Impossibile caricare il feed: ' + err.message);
+      root.innerHTML = empty('fa-triangle-exclamation', 'Impossibile caricare il feed: ' + err.message);
     }
   }
 
@@ -301,5 +305,5 @@
   }
   setInterval(tick, 250);
 
-  window.OS_WIDGETS = { TYPES, make, defaults, renderBody, bindBody, tick };
+  window.OS_WIDGETS = { TYPES, make, defaults, renderBody, bindBody, tick, icon };
 })();
