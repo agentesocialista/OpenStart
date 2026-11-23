@@ -11,4 +11,5 @@ jobs:
     steps:
       - name: Trigger Netlify deploy hook
         run: curl --fail --silent --show-error --request POST "$NETLIFY_BUILD_HOOK"
-        env:          NETLIFY_BUILD_HOOK: https://api.netlify.com/build_hooks/6b0467d403326f5ff8be3b20
+        env:
+          NETLIFY_BUILD_HOOK: https://api.netlify.com/build_hooks/6b0467d403326f5ff8be3b20
