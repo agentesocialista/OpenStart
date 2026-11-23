@@ -47,7 +47,7 @@ Il codice di 6 caratteri è l'unica credenziale: chi lo conosce può leggere e m
 
 ## Deploy
 
-Sito live: **https://openstart-mq06.netlify.app** (progetto Netlify `openstart-mq06`, team `cano`).
+Sito live: **https://open-start.netlify.app** (progetto Netlify `open-start`, team `cano`).
 
 Il repository è collegato a Netlify: ogni `git push` sul branch `main` genera un nuovo deploy (publish `public`, functions `netlify/functions`).
 
