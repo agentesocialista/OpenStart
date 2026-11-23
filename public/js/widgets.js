@@ -62,6 +62,11 @@
     return '<div class="empty-widget"><span class="big">' + icon(name) + '</span><span>' + U.esc(text) + '</span></div>';
   }
 
+  function favicon(url) {
+    const src = U.favicon(url);
+    return src ? '<img class="link-favicon" src="' + U.esc(src) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '';
+  }
+
   function fmtTime(sec) {
     sec = Math.max(0, Math.floor(sec));
     return String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
@@ -79,7 +84,7 @@
         if (!links.length && readonly) return empty('fa-bookmark', 'Nessun collegamento');
         return '<div class="link-grid">' + links.map((l, i) =>
           '<a class="link-tile" href="' + U.esc(U.safeExternal(l.url)) + '" target="_blank" rel="noopener noreferrer" data-link-index="' + i + '"' + (readonly ? ' tabindex="-1"' : ' draggable="true"') + '>' +
-          '<span class="link-icon" style="--tile:' + U.esc(l.color || U.colorFrom(l.url)) + '">' + U.esc((l.title || '?').trim().charAt(0)) + '</span>' +
+          '<span class="link-icon" style="--tile:' + U.esc(l.color || U.colorFrom(l.url)) + '">' + favicon(l.url) + '<span class="link-initial">' + U.esc((l.title || '?').trim().charAt(0)) + '</span></span>' +
           '<span class="link-title">' + U.esc(l.title) + '</span></a>'
         ).join('') + (readonly ? '' : '<button class="link-add" data-wk="add-link" title="Aggiungi collegamento">' + icon('fa-plus') + '</button>') + '</div>';
       }
@@ -171,6 +176,7 @@
     const addLink = q('[data-wk="add-link"]');
     if (addLink) addLink.addEventListener('click', () => window.OS_APP.openLinkEditor(widget.id, null));
 
+    root.querySelectorAll('.link-favicon').forEach(img => img.addEventListener('error', () => img.remove()));
     root.querySelectorAll('.link-tile').forEach(tile => {
       tile.addEventListener('contextmenu', (e) => {
         e.preventDefault();

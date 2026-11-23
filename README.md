@@ -1,20 +1,20 @@
 # OpenStart
 
-Pagina di partenza personale ispirata ai principali servizi di start page: pagine multiple, griglia di widget trascinabili, ricerca web, collegamenti, note, attività, meteo, feed RSS, calendario e condivisione pubblica.
+Pagina di partenza personale ispirata ai principali servizi di start page: pagine multiple, griglia di widget trascinabili, collegamenti, note, attività, meteo, feed RSS, calendario e condivisione pubblica.
 
 Il progetto è **statico** (HTML/CSS/JavaScript vanilla, nessun framework e nessuna dipendenza del servizio originale) e usa solo:
 
 - **Supabase** per i profili e la sincronizzazione dati;
 - **GitHub** come sorgente del codice;
-- **Netlify** per hosting, deploy continuo e la function proxy dei feed RSS.
+- **Netlify** per hosting, deploy continuo e le function proxy dei feed RSS e dei metadati dei collegamenti.
 
 ## Funzionalità
 
 - Primo accesso: inserimento del nome → generazione di un **codice personale di 6 caratteri** (lettere maiuscole e numeri, senza caratteri ambigui). Lo stesso codice su un altro dispositivo ripristina tutti i dati.
 - Pagine laterali: creazione, rinominazione (doppio clic), eliminazione e riordino tramite trascinamento.
-- Widget: collegamenti, orologio, note, da fare, meteo, feed RSS, calendario, citazione, timer. Aggiunta, modifica, duplicazione, rimozione, ridimensionamento e riordino con drag & drop.
-- Aspetto: tema chiaro/scuro, 8 colori principali, 6 sfondi, densità comoda/compatta, layout a 6 o 12 colonne.
-- Ricerca web con Google, Bing, DuckDuckGo o YouTube (scorciatoia `/`).
+- Widget: collegamenti con favicon e suggerimento automatico del titolo dall'URL, orologio, note, da fare, meteo, feed RSS, calendario, citazione, timer. Aggiunta, modifica, duplicazione, rimozione, ridimensionamento e riordino con drag & drop.
+- Aspetto: tema chiaro/scuro, 8 colori principali, sfondo monocromatico di default oppure foto online (Unsplash/URL personalizzato) o immagine caricata dal dispositivo, densità comoda/compatta, layout a 6 o 12 colonne.
+- Le immagini caricate dal dispositivo restano solo nel browser: vengono compresse e salvate in `localStorage`, non su Supabase e non nei backup JSON.
 - Importazione/esportazione JSON, rimozione account, logout dal dispositivo.
 - Condivisione di una pagina tramite link pubblico in sola lettura (`?share=CODICE8`).
 - Salvataggio automatico debounced su Supabase con fallback locale quando offline.
@@ -31,7 +31,8 @@ public/                  sito statico (publish directory di Netlify)
   js/store.js            stato, default e salvataggio
   js/widgets.js          rendering e logica dei widget
   js/app.js              UI, modali, eventi
-netlify/functions/rss.mjs   proxy RSS ( /.netlify/functions/rss?url=… )
+netlify/functions/rss.mjs       proxy RSS ( /.netlify/functions/rss?url=… )
+netlify/functions/metadata.mjs  suggerimento titolo link ( /.netlify/functions/metadata?url=… )
 supabase/migrations/      schema SQL
 netlify.toml
 ```
@@ -60,6 +61,6 @@ python3 -m http.server 8080 --directory public
 # http://localhost:8080
 ```
 
-La function RSS richiede Netlify (o `netlify dev`); in locale i feed mostreranno un messaggio di indisponibilità.
+Le function RSS e metadata richiedono Netlify (o `netlify dev`); in locale i feed mostrano un messaggio di indisponibilità e il titolo dei link viene dedotto dal dominio.
 
-Dati meteo: Open-Meteo (servizio pubblico senza chiave). Favicon dei collegamenti: monogramma generato localmente, nessuna richiesta esterna.
+Dati meteo: Open-Meteo (servizio pubblico senza chiave). Favicon dei collegamenti: Google S2 Favicons, con monogramma locale come fallback. Foto sfondo predefinite: Unsplash (licenza Unsplash).

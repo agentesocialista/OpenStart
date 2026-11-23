@@ -5,12 +5,12 @@
   const U = window.OS_UTIL;
   const API = window.OS_API;
 
-  const ENGINES = {
-    google: { label: 'Google', initial: 'G', url: 'https://www.google.com/search?q=' },
-    bing: { label: 'Bing', initial: 'B', url: 'https://www.bing.com/search?q=' },
-    duckduckgo: { label: 'DuckDuckGo', initial: 'D', url: 'https://duckduckgo.com/?q=' },
-    youtube: { label: 'YouTube', initial: 'Y', url: 'https://www.youtube.com/results?search_query=' }
-  };
+  const WALLPAPER_PRESETS = [
+    { id: 'landscape', label: 'Paesaggio', url: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1920&q=80' },
+    { id: 'forest', label: 'Foresta', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1920&q=80' },
+    { id: 'lake', label: 'Lago', url: 'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1920&q=80' },
+    { id: 'mountain', label: 'Montagna', url: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1920&q=80' }
+  ];
 
   const ACCENTS = ['#2563eb', '#7c3aed', '#db2777', '#dc2626', '#ea580c', '#059669', '#0891b2', '#4f46e5'];
 
@@ -27,7 +27,8 @@
       accent: '#2563eb',
       density: 'comfortable',
       sidebarCollapsed: false,
-      searchEngine: 'google',
+      wallpaperType: 'color',
+      wallpaperValue: '',
       clock24h: true,
       showSeconds: false,
       activePageId: 'home',
@@ -86,6 +87,13 @@
       return page;
     }) : base.pages;
     if (!s.pages.some(p => p.id === s.activePageId)) s.activePageId = s.pages[0].id;
+    if (!s.wallpaperType && typeof s.wallpaper === 'string') {
+      if (/^https?:\/\//i.test(s.wallpaper)) { s.wallpaperType = 'url'; s.wallpaperValue = s.wallpaper; }
+      else if (!/^data:image\//i.test(s.wallpaper)) s.wallpaperType = 'color';
+    }
+    delete s.wallpaper;
+    if (!['color', 'preset', 'url', 'local'].includes(s.wallpaperType)) s.wallpaperType = 'color';
+    s.wallpaperValue = typeof s.wallpaperValue === 'string' ? s.wallpaperValue : '';
     s.name = s.name || 'Utente';
     return s;
   }
@@ -101,7 +109,7 @@
   const Store = {
     state: null,
     code: null,
-    ENGINES,
+    WALLPAPER_PRESETS,
     ACCENTS,
 
     readSession() {

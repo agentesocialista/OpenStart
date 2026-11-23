@@ -33,6 +33,33 @@
       for (const c of String(text || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
       return palette[h % palette.length];
     },
+    favicon(url) {
+      const safe = U.safeUrl(url);
+      if (safe === '#') return '';
+      try {
+        const host = new URL(safe).hostname.toLowerCase().replace(/^www\./, '');
+        if (!host) return '';
+        return 'https://www.google.com/s2/favicons?domain=' + encodeURIComponent(host) + '&sz=64';
+      } catch (_) { return ''; }
+    },
+    domainLabel(url) {
+      const safe = U.safeUrl(url);
+      if (safe === '#') return '';
+      try {
+        const host = new URL(safe).hostname.toLowerCase().replace(/^www\./, '');
+        const known = {
+          'youtube.com': 'YouTube', 'google.com': 'Google', 'gmail.com': 'Gmail',
+          'github.com': 'GitHub', 'netflix.com': 'Netflix', 'figma.com': 'Figma',
+          'notion.so': 'Notion', 'amazon.it': 'Amazon', 'wikipedia.org': 'Wikipedia'
+        };
+        if (known[host]) return known[host];
+        for (const key of Object.keys(known)) {
+          if (host.endsWith('.' + key)) return known[key];
+        }
+        const first = host.split('.')[0].replace(/[-_]+/g, ' ');
+        return first.charAt(0).toUpperCase() + first.slice(1);
+      } catch (_) { return ''; }
+    },
     icon(value, fallback) {
       const legacy = {};
       legacy['\u{1F4C4}'] = 'fa-file';

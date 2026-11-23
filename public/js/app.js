@@ -2,6 +2,7 @@
   'use strict';
 
   const U = window.OS_UTIL;
+  const cfg = window.OS_CONFIG;
   const API = window.OS_API;
   const Store = window.OS_STORE;
   const W = window.OS_WIDGETS;
@@ -101,6 +102,7 @@
     Store.state = null;
     Store.code = null;
     closeModal();
+    applyWallpaper();
     showOb('create');
     toast('Disconnesso da questo dispositivo');
   }
@@ -144,9 +146,8 @@
     $('menuCode').textContent = Store.code || '——————';
     $('sideName').textContent = s.name || 'Utente';
     $('sideCode').innerHTML = U.esc(Store.code || '——————') + ' <i class="fa-solid fa-copy" aria-hidden="true"></i>';
-    const engine = Store.ENGINES[s.searchEngine] || Store.ENGINES.google;
-    $('engineInitial').textContent = engine.initial;
     $('themeIcon').className = 'fa-solid ' + (s.theme === 'dark' ? 'fa-sun' : 'fa-moon');
+    applyWallpaper();
     applySidebar();
   }
 
@@ -159,6 +160,136 @@
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
     if (!m) return 'rgba(37,99,235,' + a + ')';
     return 'rgba(' + parseInt(m[1], 16) + ',' + parseInt(m[2], 16) + ',' + parseInt(m[3], 16) + ',' + a + ')';
+  }
+
+  /* ---------------- sfondo ---------------- */
+  function localWallpaperKey() {
+    return cfg.LOCAL_WALLPAPER_KEY + (Store.code ? ':' + Store.code : '');
+  }
+  function readLocalWallpaper() {
+    try { return localStorage.getItem(localWallpaperKey()) || ''; } catch (_) { return ''; }
+  }
+  function writeLocalWallpaper(dataUrl) {
+    try { localStorage.setItem(localWallpaperKey(), dataUrl); return true; } catch (_) { return false; }
+  }
+  function removeLocalWallpaper() {
+    try { localStorage.removeItem(localWallpaperKey()); } catch (_) { /* ignore */ }
+  }
+  function cssUrl(value) {
+    return "url('" + U.esc(value) + "')";
+  }
+  function wallpaperSource() {
+    const s = Store.state;
+    if (!s) return '';
+    if (s.wallpaperType === 'preset') {
+      const preset = Store.WALLPAPER_PRESETS.find(p => p.id === s.wallpaperValue);
+      return preset ? preset.url : '';
+    }
+    if (s.wallpaperType === 'url') return /^https?:\/\//i.test(s.wallpaperValue) ? s.wallpaperValue : '';
+    if (s.wallpaperType === 'local') return readLocalWallpaper();
+    return '';
+  }
+  function applyWallpaper() {
+    const src = wallpaperSource();
+    if (src) {
+      document.body.style.setProperty('--wallpaper-image', 'url(' + JSON.stringify(src) + ')');
+      document.body.dataset.wallpaper = 'image';
+    } else {
+      document.body.style.removeProperty('--wallpaper-image');
+      document.body.dataset.wallpaper = 'color';
+    }
+  }
+  async function compressImage(file) {
+    const original = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('read'));
+      reader.readAsDataURL(file);
+    });
+    const img = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('decode'));
+      image.src = original;
+    });
+    const max = 1920;
+    let width = img.naturalWidth || img.width;
+    let height = img.naturalHeight || img.height;
+    if (width > max || height > max) {
+      const scale = Math.min(max / width, max / height);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', 0.82);
+  }
+  function wallpaperPanel(s) {
+    const type = s.wallpaperType || 'color';
+    if (type === 'color') {
+      return '<p class="hint" style="margin-top:0">Sfondo monocromatico attivo. Scegli una foto per personalizzarlo.</p>';
+    }
+    if (type === 'local') {
+      const data = readLocalWallpaper();
+      return '<p class="hint" style="margin-top:0">La foto resta solo in questo browser: non viene caricata su Supabase né sincronizzata.</p>' +
+        '<div class="wp-local-actions"><button class="btn btn-ghost btn-sm" id="wpPick"><i class="fa-solid fa-upload" aria-hidden="true"></i> Scegli immagine</button>' +
+        (data ? '<button class="btn btn-ghost btn-sm" id="wpRemove"><i class="fa-solid fa-trash" aria-hidden="true"></i> Rimuovi immagine locale</button>' : '') + '</div>' +
+        '<input type="file" id="wpFile" accept="image/*" hidden />' +
+        (data ? '<div class="wp-preview" style="background-image:' + cssUrl(data) + '"></div>' : '<p class="hint">Nessuna immagine caricata su questo dispositivo.</p>');
+    }
+    const thumbs = Store.WALLPAPER_PRESETS.map(p =>
+      '<button class="wp-thumb' + (type === 'preset' && s.wallpaperValue === p.id ? ' active' : '') + '" data-wp-preset="' + U.esc(p.id) + '" style="background-image:' + cssUrl(p.url) + '" title="' + U.esc(p.label) + '"><span>' + U.esc(p.label) + '</span></button>'
+    ).join('');
+    return '<div class="wallpaper-grid">' + thumbs + '</div>' +
+      '<div class="form-row" style="margin-top:10px"><label>Oppure incolla un URL di immagine</label>' +
+      '<div class="share-box"><input id="wpUrl" type="url" placeholder="https://…/foto.jpg" value="' + U.esc(type === 'url' ? s.wallpaperValue : '') + '" /><button class="btn btn-ghost btn-sm" id="wpApplyUrl">Applica</button></div>' +
+      '<p class="hint">Usa foto royalty free, di pubblico dominio o personali.</p></div>';
+  }
+  function wireWallpaper(host, s) {
+    host.querySelectorAll('[data-wp-preset]').forEach(btn => btn.addEventListener('click', () => {
+      const preset = Store.WALLPAPER_PRESETS.find(p => p.id === btn.dataset.wpPreset);
+      if (!preset) return;
+      s.wallpaperType = 'preset';
+      s.wallpaperValue = preset.id;
+      Store.markDirty(); applyWallpaper(); renderTab('appearance');
+    }));
+    const applyUrl = host.querySelector('#wpApplyUrl');
+    if (applyUrl) applyUrl.addEventListener('click', () => {
+      const value = (host.querySelector('#wpUrl').value || '').trim();
+      const candidate = /^https?:\/\//i.test(value) ? value : 'https://' + value;
+      let parsed;
+      try { parsed = new URL(candidate); } catch (_) { toast('Inserisci un URL valido', 'err'); return; }
+      if (!['http:', 'https:'].includes(parsed.protocol)) { toast('Usa un indirizzo http o https', 'err'); return; }
+      s.wallpaperType = 'url';
+      s.wallpaperValue = parsed.toString();
+      Store.markDirty(); applyWallpaper(); renderTab('appearance'); toast('Sfondo applicato', 'ok');
+    });
+    const pick = host.querySelector('#wpPick');
+    const file = host.querySelector('#wpFile');
+    if (pick && file) pick.addEventListener('click', () => file.click());
+    if (file) file.addEventListener('change', async () => {
+      const chosen = file.files && file.files[0];
+      if (!chosen) return;
+      if (!chosen.type.startsWith('image/')) { toast('Scegli un file immagine', 'err'); return; }
+      try {
+        const dataUrl = await compressImage(chosen);
+        if (!writeLocalWallpaper(dataUrl)) { toast('Spazio locale insufficiente', 'err'); return; }
+        s.wallpaperType = 'local';
+        s.wallpaperValue = '';
+        Store.markDirty(); applyWallpaper(); renderTab('appearance');
+        toast('Immagine salvata in questo browser', 'ok');
+      } catch (_) { toast('Impossibile leggere l’immagine', 'err'); }
+    });
+    const remove = host.querySelector('#wpRemove');
+    if (remove) remove.addEventListener('click', () => {
+      removeLocalWallpaper();
+      s.wallpaperType = 'color';
+      s.wallpaperValue = '';
+      Store.markDirty(); applyWallpaper(); renderTab('appearance');
+      toast('Immagine locale rimossa');
+    });
   }
 
   function renderAll() {
@@ -191,7 +322,6 @@
       if (w) W.bindBody(card.querySelector('.widget-body'), w, false);
     });
     $('addWidgetTile').addEventListener('click', openWidgetPicker);
-    $('pageSubtitle').textContent = page.widgets.length + ' widget · trascina la maniglia per riordinare · doppio clic su una pagina per rinominarla';
   }
 
   function widgetCard(w) {
@@ -318,6 +448,19 @@
       '<button type="button" data-row-del title="Elimina"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>';
   }
 
+  async function suggestTitle(rawUrl) {
+    const safe = U.safeUrl(rawUrl);
+    if (safe === '#') return '';
+    try {
+      const res = await fetch(cfg.METADATA_ENDPOINT + encodeURIComponent(safe), { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.title) return String(data.title).slice(0, 40);
+      }
+    } catch (_) { /* si usa il fallback dal dominio */ }
+    return U.domainLabel(safe).slice(0, 40);
+  }
+
   APP.openLinkEditor = function (widgetId, index) {
     const found = Store.findWidget(widgetId);
     if (!found) return;
@@ -331,6 +474,20 @@
       '</div><div class="modal-foot">' +
       (existing ? '<button class="btn btn-danger" id="lkDelete" style="margin-right:auto">Elimina</button>' : '') +
       '<button class="btn btn-ghost" data-modal-close>Annulla</button><button class="btn btn-primary" id="lkSave">Salva</button></div>');
+    const urlInput = $('lkUrl');
+    const titleInput = $('lkTitle');
+    let titleEdited = false;
+    let suggestTimer = null;
+    titleInput.addEventListener('input', () => { titleEdited = true; });
+    urlInput.addEventListener('input', () => {
+      clearTimeout(suggestTimer);
+      suggestTimer = setTimeout(async () => {
+        if (titleEdited && titleInput.value.trim()) return;
+        const suggestion = await suggestTitle(urlInput.value);
+        if (titleEdited && titleInput.value.trim()) return;
+        if (suggestion) titleInput.value = suggestion;
+      }, 450);
+    });
     $('lkSave').addEventListener('click', () => {
       const title = ($('lkTitle').value || '').trim();
       const url = ($('lkUrl').value || '').trim();
@@ -365,22 +522,19 @@
       host.innerHTML =
         '<div class="form-row"><label>Nome</label><input id="setName" type="text" maxlength="60" value="' + U.esc(s.name) + '" /></div>' +
         '<div class="form-row"><label>Titolo della pagina principale</label><input id="setTitle" type="text" maxlength="40" value="' + U.esc(s.title || '') + '" /></div>' +
-        '<div class="form-row"><label>Motore di ricerca</label><select id="setEngine">' +
-        Object.keys(Store.ENGINES).map(k => '<option value="' + k + '"' + (s.searchEngine === k ? ' selected' : '') + '>' + Store.ENGINES[k].label + '</option>').join('') +
-        '</select></div>' +
         '<label class="check-row"><input type="checkbox" id="set24"' + (s.clock24h !== false ? ' checked' : '') + ' /> Formato orologio 24 ore</label>' +
         '<label class="check-row"><input type="checkbox" id="setSec"' + (s.showSeconds ? ' checked' : '') + ' /> Mostra i secondi</label>' +
         '<div class="modal-foot" style="padding:16px 0 0"><button class="btn btn-primary" id="setSaveGeneral">Salva modifiche</button></div>';
       $('setSaveGeneral').addEventListener('click', () => {
         s.name = ($('setName').value || 'Utente').trim();
         s.title = $('setTitle').value.trim();
-        s.searchEngine = $('setEngine').value;
         s.clock24h = $('set24').checked;
         s.showSeconds = $('setSec').checked;
         closeModal(); Store.markDirty(); applyState(); renderAll();
         toast('Impostazioni salvate', 'ok');
       });
     } else if (tab === 'appearance') {
+      const isPhoto = s.wallpaperType === 'preset' || s.wallpaperType === 'url';
       host.innerHTML =
         '<div class="form-row"><label>Tema</label><div class="segmented" id="segTheme">' +
         [['light', 'fa-sun', 'Chiaro'], ['dark', 'fa-moon', 'Scuro']].map(([v, ic, l]) =>
@@ -389,12 +543,32 @@
         '<div class="form-row"><label>Colore principale</label><div class="swatches" id="accentSwatches">' +
         Store.ACCENTS.map(a => '<button class="swatch' + (s.accent === a ? ' active' : '') + '" data-accent="' + a + '" style="background:' + a + '" aria-label="' + a + '"></button>').join('') +
         '</div></div>' +
-        '<p class="hint" style="margin-top:-6px">Lo sfondo è monocromatico: bianco tenue di giorno, nero tenue di notte.</p>' +
+        '<div class="form-row"><label>Sfondo</label><div class="segmented" id="segWallpaper">' +
+        [['color', 'fa-palette', 'Monocromatico'], ['photo', 'fa-image', 'Foto online'], ['local', 'fa-upload', 'Dal dispositivo']].map(([v, ic, l]) => {
+          const active = v === 'photo' ? isPhoto : s.wallpaperType === v;
+          return '<button data-wp-type="' + v + '" class="' + (active ? 'active' : '') + '"><i class="fa-solid ' + ic + '" aria-hidden="true"></i> ' + l + '</button>';
+        }).join('') +
+        '</div><div id="wallpaperPanel" style="margin-top:10px">' + wallpaperPanel(s) + '</div></div>' +
         '<div class="form-row"><label>Densità widget</label><div class="segmented" id="segDensity">' +
         ['comfortable:Comoda', 'compact:Compatta'].map(x => { const [v, l] = x.split(':'); return '<button data-value="' + v + '" class="' + ((s.density || 'comfortable') === v ? 'active' : '') + '">' + l + '</button>'; }).join('') +
         '</div></div>';
-      host.querySelectorAll('#segTheme button, #segDensity button').forEach(b => b.addEventListener('click', () => {
+      host.querySelectorAll('#segTheme button, #segDensity button, #segWallpaper button').forEach(b => b.addEventListener('click', () => {
         const parent = b.parentElement;
+        if (parent.id === 'segWallpaper') {
+          const type = b.dataset.wpType;
+          if (type === 'photo') {
+            s.wallpaperType = 'preset';
+            if (!Store.WALLPAPER_PRESETS.some(p => p.id === s.wallpaperValue)) s.wallpaperValue = Store.WALLPAPER_PRESETS[0].id;
+          } else if (type === 'local') {
+            s.wallpaperType = 'local';
+            s.wallpaperValue = '';
+          } else {
+            s.wallpaperType = 'color';
+            s.wallpaperValue = '';
+          }
+          Store.markDirty(); applyWallpaper(); renderTab('appearance');
+          return;
+        }
         parent.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
         if (parent.id === 'segTheme') s.theme = b.dataset.value; else s.density = b.dataset.value;
         Store.markDirty(); applyState(); renderPage();
@@ -404,6 +578,7 @@
         host.querySelectorAll('[data-accent]').forEach(x => x.classList.toggle('active', x === b));
         Store.markDirty(); applyState();
       }));
+      wireWallpaper(host, s);
     } else {
       host.innerHTML =
         '<div class="form-row"><label>Codice personale (6 caratteri)</label><div class="share-box"><input id="dataCode" value="' + U.esc(Store.code) + '" readonly /><button class="btn btn-ghost btn-sm" id="dataCopy">Copia</button></div>' +
@@ -710,25 +885,6 @@
       document.querySelectorAll('.widget.dragging, .widget.drag-over').forEach(x => x.classList.remove('dragging', 'drag-over'));
     });
 
-    $('engineBtn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      const menu = $('engineMenu');
-      menu.innerHTML = Object.keys(Store.ENGINES).map(k =>
-        '<button data-engine="' + k + '"><b>' + Store.ENGINES[k].initial + '</b>' + Store.ENGINES[k].label + '</button>').join('');
-      menu.classList.toggle('hidden');
-      menu.querySelectorAll('[data-engine]').forEach(b => b.addEventListener('click', () => {
-        Store.state.searchEngine = b.dataset.engine;
-        Store.markDirty(); applyState(); menu.classList.add('hidden');
-      }));
-    });
-    $('searchForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const q = $('searchInput').value.trim();
-      if (!q) return;
-      const engine = Store.ENGINES[Store.state.searchEngine] || Store.ENGINES.google;
-      window.open(engine.url + encodeURIComponent(q), '_blank', 'noopener');
-    });
-
     $('themeToggle').addEventListener('click', () => {
       Store.state.theme = Store.state.theme === 'dark' ? 'light' : 'dark';
       Store.markDirty(); applyState();
@@ -756,14 +912,10 @@
 
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.user-wrap')) $('userMenu').classList.add('hidden');
-      if (!e.target.closest('.search-wrap')) $('engineMenu').classList.add('hidden');
       if (!e.target.closest('.widget-menu') && !e.target.closest('[data-wk-menu]')) document.querySelectorAll('.widget-menu').forEach(m => m.classList.add('hidden'));
     });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') { closeModal(); document.querySelectorAll('.widget-menu, .user-menu, .engine-menu').forEach(m => m.classList.add('hidden')); }
-      if (e.key === '/' && !/INPUT|TEXTAREA/.test(document.activeElement.tagName) && !$('app').classList.contains('hidden')) {
-        e.preventDefault(); $('searchInput').focus();
-      }
+      if (e.key === 'Escape') { closeModal(); document.querySelectorAll('.widget-menu, .user-menu').forEach(m => m.classList.add('hidden')); }
     });
   }
 
