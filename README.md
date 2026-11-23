@@ -62,4 +62,6 @@ python3 -m http.server 8080 --directory public
 
 La function RSS richiede Netlify (o `netlify dev`); in locale i feed mostreranno un messaggio di indisponibilità.
 
+Deploy continuo attivo: ogni push su `main` pubblica automaticamente.
+
 Dati meteo: Open-Meteo (servizio pubblico senza chiave). Favicon dei collegamenti: monogramma generato localmente, nessuna richiesta esterna.
