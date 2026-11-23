@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="description" content="OpenStart — la tua pagina di partenza personale: pagine, collegamenti, widget e note, sempre sincronizzati." />
+  <title>OpenStart — La tua pagina di partenza</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%232563eb'/%3E%3Cpath d='M32 10l5.2 13.3L51 27l-11 8.6 3.6 14L32 41.6 20.4 49.6 24 35.6 13 27l13.8-3.7z' fill='white'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- ================= ONBOARDING ================= -->
+  <section id="onboarding" class="onboarding">
+    <div class="onboarding-glow glow-one"></div>
+    <div class="onboarding-glow glow-two"></div>
+
+    <div class="onboarding-wrap">
+      <div class="brand brand-onboarding">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64"><path d="M32 9l5.6 14.2L52.5 27 41 36l4 15.5L32 42.3 19 51.5 23 36 11.5 27l14.9-3.8z"/></svg>
+        </span>
+        <span class="brand-name">Open<span>Start</span></span>
+      </div>
+
+      <!-- create -->
+      <div class="ob-card" id="obCreate">
+        <div class="ob-emoji" aria-hidden="true">👋</div>
+        <h1>Benvenuto su OpenStart</h1>
+        <p class="ob-sub">Crea la tua pagina di partenza in pochi secondi. Ti basterà un nome per iniziare.</p>
+        <form id="createForm" novalidate>
+          <label class="field-label" for="obName">Come ti chiami?</label>
+          <input id="obName" class="text-input ob-input" type="text" maxlength="60" placeholder="Il tuo nome" autocomplete="given-name" required />
+          <p class="field-error" id="obNameError" hidden>Inserisci un nome di almeno 2 caratteri.</p>
+          <button class="btn btn-primary btn-block" type="submit">Crea la mia pagina <span aria-hidden="true">→</span></button>
+        </form>
+        <p class="ob-switch">Hai già un codice? <button class="link-btn" type="button" data-ob="restore">Accedi con il codice</button></p>
+        <p class="ob-foot">Nessuna email, nessuna password. Solo il tuo codice personale.</p>
+      </div>
+
+      <!-- restore -->
+      <div class="ob-card hidden" id="obRestore">
+        <div class="ob-emoji" aria-hidden="true">🔑</div>
+        <h1>Bentornato</h1>
+        <p class="ob-sub">Inserisci il codice di 6 caratteri ricevuto alla creazione per riprendere la tua pagina su questo dispositivo.</p>
+        <form id="restoreForm" novalidate>
+          <label class="field-label" for="obCode">Codice personale</label>
+          <input id="obCode" class="text-input ob-input code-input" type="text" maxlength="6" placeholder="ABC123" autocomplete="off" spellcheck="false" required />
+          <p class="field-error" id="obCodeError" hidden>Codice non trovato. Controlla e riprova.</p>
+          <button class="btn btn-primary btn-block" type="submit">Ripristina la pagina <span aria-hidden="true">→</span></button>
+        </form>
+        <p class="ob-switch"><button class="link-btn" type="button" data-ob="create">← Torna alla creazione</button></p>
+      </div>
+
+      <!-- code -->
+      <div class="ob-card hidden" id="obCodeCard">
+        <div class="ob-emoji" aria-hidden="true">🎉</div>
+        <h1>La tua pagina è pronta!</h1>
+        <p class="ob-sub">Questo è il tuo codice personale. Salvalo: ti servirà per ritrovare tutti i tuoi dati su un altro dispositivo.</p>
+        <div class="code-display" id="obCodeValue">------</div>
+        <button class="btn btn-ghost btn-block" type="button" id="obCopyCode">Copia il codice</button>
+        <button class="btn btn-primary btn-block" type="button" id="obEnter">Vai alla mia pagina <span aria-hidden="true">→</span></button>
+        <p class="ob-foot">Chiunque conosca il codice può accedere alla tua pagina: non condividerlo.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= APP ================= -->
+  <div id="app" class="app hidden">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="icon-btn mobile-menu" id="menuToggle" title="Menu" aria-label="Apri menu">☰</button>
+        <a class="brand" href="#" id="brandHome" aria-label="OpenStart home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 64 64"><path d="M32 9l5.6 14.2L52.5 27 41 36l4 15.5L32 42.3 19 51.5 23 36 11.5 27l14.9-3.8z"/></svg>
+          </span>
+          <span class="brand-name">Open<span>Start</span></span>
+        </a>
+      </div>
+
+      <form class="search-wrap" id="searchForm" role="search">
+        <button class="engine-btn" type="button" id="engineBtn" title="Cambia motore di ricerca">
+          <span class="engine-initial" id="engineInitial">G</span>
+          <span class="caret" aria-hidden="true"></span>
+        </button>
+        <div class="engine-menu hidden" id="engineMenu"></div>
+        <input id="searchInput" class="search-input" type="search" placeholder="Cerca nel web…" autocomplete="off" aria-label="Cerca nel web" />
+        <button class="search-submit" type="submit" title="Cerca" aria-label="Cerca">⌕</button>
+      </form>
+
+      <div class="topbar-right">
+        <span class="save-state" id="saveState">Tutto salvato</span>
+        <button class="icon-btn" id="addWidgetTop" title="Aggiungi widget" aria-label="Aggiungi widget">＋</button>
+        <button class="icon-btn" id="themeToggle" title="Cambia tema" aria-label="Cambia tema">☾</button>
+        <div class="user-wrap">
+          <button class="avatar-btn" id="userBtn" title="Account">
+            <span class="avatar" id="topAvatar">?</span>
+            <span class="caret" aria-hidden="true"></span>
+          </button>
+          <div class="user-menu hidden" id="userMenu">
+            <div class="user-menu-head">
+              <span class="avatar avatar-lg" id="menuAvatar">?</span>
+              <div><strong id="menuName">—</strong><small id="menuCode">——————</small></div>
+            </div>
+            <button class="menu-item" data-user="settings">⚙️ Impostazioni</button>
+            <button class="menu-item" data-user="backup">💾 Importa / Esporta</button>
+            <button class="menu-item" data-user="share">🔗 Condividi pagina</button>
+            <div class="menu-sep"></div>
+            <button class="menu-item danger" data-user="logout">↪ Esci da questo dispositivo</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <div class="profile-card">
+          <span class="avatar avatar-xl" id="sideAvatar">?</span>
+          <div class="profile-meta">
+            <strong id="sideName">—</strong>
+            <button class="code-chip" id="sideCode" title="Copia il codice">—————— <span aria-hidden="true">⧉</span></button>
+          </div>
+        </div>
+
+        <div class="side-section-head">
+          <span>LE MIE PAGINE</span>
+          <button class="mini-add" id="addPageBtn" title="Nuova pagina" aria-label="Nuova pagina">＋</button>
+        </div>
+        <nav class="pages-list" id="pagesList" aria-label="Pagine"></nav>
+
+        <div class="sidebar-bottom">
+          <button class="side-link" data-side="settings"><span>⚙️</span> Impostazioni</button>
+          <button class="side-link" data-side="backup"><span>💾</span> Importa / Esporta</button>
+          <button class="side-link" data-side="help"><span>❓</span> Come funziona</button>
+        </div>
+      </aside>
+
+      <main class="main" id="main">
+        <div class="page-head">
+          <div class="page-title-wrap">
+            <input id="pageTitle" class="page-title" type="text" maxlength="40" aria-label="Nome pagina" />
+            <span class="page-subtitle" id="pageSubtitle">Trascina i widget per riordinarli</span>
+          </div>
+          <div class="page-actions">
+            <button class="pill-btn" id="layoutBtn" title="Numero di colonne">▦ <span id="layoutLabel">12 col</span></button>
+            <button class="pill-btn" id="sharePageBtn" title="Condividi pagina">🔗 Condividi</button>
+            <button class="pill-btn primary" id="addWidgetBtn" title="Aggiungi widget">＋ Widget</button>
+          </div>
+        </div>
+        <div class="widget-grid" id="widgetGrid"></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ================= SHARED PAGE ================= -->
+  <div id="shareView" class="share-view hidden">
+    <header class="share-topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M32 9l5.6 14.2L52.5 27 41 36l4 15.5L32 42.3 19 51.5 23 36 11.5 27l14.9-3.8z"/></svg></span>
+        <span class="brand-name">Open<span>Start</span></span>
+      </div>
+      <span class="share-badge">Pagina condivisa</span>
+      <button class="btn btn-primary btn-sm" id="shareCreateBtn">Crea la tua pagina</button>
+    </header>
+    <main class="share-main">
+      <h1 id="shareTitle">Pagina condivisa</h1>
+      <p class="share-note">Questa pagina è di sola lettura. Crea la tua pagina OpenStart per personalizzarla.</p>
+      <div class="widget-grid" id="shareGrid"></div>
+    </main>
+  </div>
+
+  <div id="modalRoot"></div>
+  <div id="toastRoot" class="toast-root" aria-live="polite"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/widgets.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
