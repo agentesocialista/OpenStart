@@ -776,9 +776,19 @@
     const session = Store.readSession();
     if (session && session.code) {
       restore(session.code, true).then(() => enterApp()).catch(() => {
-        Store.clearSession();
-        showOb('create');
-        toast('Codice non più valido, crea una nuova pagina', 'err');
+        const cache = Store.readCache();
+        if (cache && cache.code === session.code && cache.state) {
+          Store.code = session.code;
+          Store.state = Store.normalize(cache.state);
+          enterApp();
+          setSaveState('offline', 'Sincronizzazione non disponibile');
+          toast('Dati caricati dal browser: riproverò a sincronizzare', 'err');
+          setInterval(() => { if (Store.code) Store.flush(); }, 30000);
+        } else {
+          Store.clearSession();
+          showOb('create');
+          toast('Codice non più valido, crea una nuova pagina', 'err');
+        }
       });
     } else {
       showOb('create');
