@@ -3,3 +3,11 @@
 [build]
   publish = "public"
   functions = "netlify/functions"
+
+# Netlify inietta il badge "Powered by Netlify" tramite uno script inline in un iframe srcdoc.
+# Una CSP senza 'unsafe-inline' in script-src ne impedisce il rendering (comportamento
+# documentato da Netlify), senza toccare gli script del sito, che sono tutti locali.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "script-src 'self'"

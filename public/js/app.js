@@ -384,6 +384,8 @@
     const root = $('modalRoot');
     const el = modalEl;
     modalEl = null;
+    // Chiudere il modale deve portare via anche la tastiera virtuale.
+    if (el && el.contains(document.activeElement) && document.activeElement.blur) document.activeElement.blur();
     if (!el || !el.parentNode) { root.innerHTML = ''; return; }
     if (animated && !U.reduceMotion()) {
       el.parentNode.classList.add('closing');
@@ -726,7 +728,7 @@
     openModal(modalHead('Come funziona OpenStart') +
       '<div class="modal-body"><p style="font-size:13px;line-height:1.7;margin-top:0">' +
       '<i class="fa-solid fa-file" aria-hidden="true"></i> <strong>Pagine</strong>: usa la barra laterale per creare, rinominare (doppio clic) ed eliminare pagine.<br>' +
-      '<i class="fa-solid fa-puzzle-piece" aria-hidden="true"></i> <strong>Widget</strong>: aggiungili con il pulsante Widget, trascinali dalla maniglia (tieni premuto su smartphone) per riordinarli e usa il menu Opzioni per dimensioni, duplicazione e rimozione.<br>' +
+      '<i class="fa-solid fa-puzzle-piece" aria-hidden="true"></i> <strong>Widget</strong>: aggiungili con il pulsante Widget, trascinali dall\'intestazione (tieni premuto su smartphone) per riordinarli e usa il menu Opzioni per dimensioni, duplicazione e rimozione.<br>' +
       '<i class="fa-solid fa-bookmark" aria-hidden="true"></i> <strong>Collegamenti</strong>: clicca il pulsante Aggiungi; modificali con il clic destro o con la matita, trascinali per riordinarli (pressione prolungata al tatto).<br>' +
       '<i class="fa-solid fa-mobile-screen" aria-hidden="true"></i> <strong>Su smartphone</strong>: apri la barra laterale scorrendo dal bordo sinistro, chiudila con uno swipe o toccando fuori; trascina i modali verso il basso per chiuderli.<br>' +
       '<i class="fa-solid fa-key" aria-hidden="true"></i> <strong>Codice</strong>: lo trovi nella sidebar e in Impostazioni, scheda Dati. Ti serve per accedere da un altro dispositivo.<br>' +
@@ -787,7 +789,42 @@
     themeTransition._timer = setTimeout(() => document.body.classList.remove('theme-switching'), 380);
   }
 
+  // La tastiera virtuale copre il bottom sheet: teniamo il modale dentro la viewport visibile.
+  function setupViewport() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    let focused = null;
+    const update = () => {
+      const keyboard = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
+      const root = document.documentElement;
+      root.style.setProperty('--kb-height', keyboard + 'px');
+      root.style.setProperty('--vv-height', vv.height + 'px');
+      if (!keyboard || !focused || !modalEl) return;
+      const bottom = vv.offsetTop + vv.height - 12;
+      const r = focused.getBoundingClientRect();
+      if (r.bottom > bottom || r.top < vv.offsetTop + 12) {
+        const delta = r.bottom > bottom ? r.bottom - bottom : r.top - (vv.offsetTop + 12);
+        modalEl.scrollTop += delta;
+      }
+    };
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    document.addEventListener('focusin', (e) => {
+      if (!modalEl || !modalEl.contains(e.target) || !e.target.matches('input, textarea, select')) return;
+      focused = e.target;
+      update();
+      setTimeout(update, 350); // la tastiera appare con un'animazione
+    });
+    document.addEventListener('focusout', (e) => {
+      if (e.target !== focused) return;
+      focused = null;
+      setTimeout(update, 60);
+    });
+    update();
+  }
+
   function bindGlobal() {
+    setupViewport();
     document.querySelectorAll('[data-ob]').forEach(b => b.addEventListener('click', () => showOb(b.dataset.ob)));
 
     $('createForm').addEventListener('submit', async (e) => {
@@ -918,7 +955,8 @@
       });
       window.OS_SORTABLE.create($('widgetGrid'), {
         item: '.widget',
-        handle: '.widget-drag',
+        handle: '.widget-head',
+        noDrag: '[data-no-drag], input, textarea, select, button',
         delay: 200,
         onReorder(from, to) {
           if (from === to) return;
@@ -989,7 +1027,9 @@
       if (e.pointerType === 'mouse' || e.target.closest('.modal-backdrop')) return;
       const sidebar = $('sidebar');
       const isOpen = sidebar.classList.contains('open');
-      const fromEdge = !isOpen && e.clientX <= 24;
+      // Non rubare il gesto alle griglie riordinabili: lì vale il long-press.
+      const onSortable = !!e.target.closest('.widget-grid, .pages-list, .link-grid');
+      const fromEdge = !isOpen && !onSortable && e.clientX <= 16;
       const fromSidebar = isOpen && !!e.target.closest('.sidebar') && !e.target.closest('.page-item') && !e.target.closest('button');
       if (!fromEdge && !fromSidebar) return;
       edge = { id: e.pointerId, x: e.clientX, y: e.clientY, mode: fromEdge ? 'open' : 'close', moved: false };

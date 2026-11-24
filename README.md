@@ -53,7 +53,9 @@ Il codice di 6 caratteri è l'unica credenziale: chi lo conosce può leggere e m
 
 Sito live: **https://open-start.netlify.app** (progetto Netlify `open-start`, team `cano`).
 
-Il repository è collegato a Netlify: ogni `git push` sul branch `main` genera un nuovo deploy (publish `public`, functions `netlify/functions`).
+Il repository è collegato a Netlify: ogni `git push` sul branch `main` genera un nuovo deploy (publish `public`, functions `netlify/functions`). I commit creati tramite API GitHub non sempre attivano la GitHub Action: in quel caso basta richiamare il build hook (`/.github/workflows/deploy.yml`).
+
+`netlify.toml` imposta `Content-Security-Policy: script-src 'self'`: tutti gli script del sito sono locali, mentre la CSP impedisce il rendering del badge "Powered by Netlify" iniettato da Netlify nell'iframe (comportamento documentato). Il badge può comunque essere gestito dalle impostazioni del progetto Netlify, se il piano lo consente.
 
 Per lavorare in locale:
 
