@@ -24,6 +24,12 @@
       };
     },
     clamp(n, min, max) { return Math.min(max, Math.max(min, n)); },
+    reduceMotion() {
+      return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    },
+    vibrate(ms) {
+      try { if (navigator.vibrate) navigator.vibrate(ms); } catch (_) { /* ignore */ }
+    },
     initials(name) {
       return String(name || '?').trim().split(/\s+/).slice(0, 2).map(p => p[0] || '').join('').toUpperCase() || '?';
     },

@@ -39,7 +39,11 @@
     el.className = 'toast' + (kind ? ' ' + kind : '');
     el.textContent = message;
     $('toastRoot').appendChild(el);
-    setTimeout(() => el.remove(), 3200);
+    setTimeout(() => {
+      if (U.reduceMotion()) { el.remove(); return; }
+      el.classList.add('out');
+      setTimeout(() => el.remove(), 200);
+    }, 3000);
   }
 
   function setBusy(value) {
@@ -292,30 +296,31 @@
     });
   }
 
-  function renderAll() {
+  function renderAll(animate) {
     renderPages();
-    renderPage();
+    renderPage(animate);
   }
 
   function renderPages() {
     const list = $('pagesList');
     list.innerHTML = Store.state.pages.map(p =>
-      '<button class="page-item' + (p.id === Store.state.activePageId ? ' active' : '') + '" data-page-id="' + U.esc(p.id) + '" draggable="true" title="' + U.esc(p.name) + '">' +
+      '<div class="page-item' + (p.id === Store.state.activePageId ? ' active' : '') + '" data-page-id="' + U.esc(p.id) + '" role="button" tabindex="0" title="' + U.esc(p.name) + '">' +
       '<span class="pg-icon">' + U.iconHtml(p.icon, 'fa-file') + '</span>' +
       '<span class="pg-name">' + U.esc(p.name) + '</span>' +
-      '<span class="pg-del" data-del-page="' + U.esc(p.id) + '" title="Elimina pagina"><i class="fa-solid fa-xmark" aria-hidden="true"></i></span></button>'
+      '<button class="pg-rename" data-rename-page="' + U.esc(p.id) + '" data-no-drag title="Rinomina pagina" aria-label="Rinomina pagina"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>' +
+      '<button class="pg-del" data-del-page="' + U.esc(p.id) + '" data-no-drag title="Elimina pagina" aria-label="Elimina pagina"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>'
     ).join('');
   }
 
-  function renderPage() {
+  function renderPage(animate) {
     const page = Store.activePage();
     if (!page) return;
     $('pageTitle').value = page.name;
     $('layoutLabel').textContent = (page.columns === 6 ? '6' : '12') + ' col';
     const grid = $('widgetGrid');
-    grid.className = 'widget-grid' + (page.columns === 6 ? ' cols-6' : '');
-    grid.innerHTML = page.widgets.map(w => widgetCard(w)).join('') +
-      '<button class="add-widget-tile" id="addWidgetTile"><span class="plus"><i class="fa-solid fa-plus" aria-hidden="true"></i></span><span>Aggiungi widget</span></button>';
+    grid.className = 'widget-grid' + (page.columns === 6 ? ' cols-6' : '') + (animate === false ? '' : ' animate-in');
+    grid.innerHTML = page.widgets.map((w, i) => widgetCard(w, i)).join('') +
+      '<button class="add-widget-tile" id="addWidgetTile" style="--i:' + page.widgets.length + '"><span class="plus"><i class="fa-solid fa-plus" aria-hidden="true"></i></span><span>Aggiungi widget</span></button>';
 
     grid.querySelectorAll('.widget').forEach(card => {
       const w = page.widgets.find(x => x.id === card.dataset.widgetId);
@@ -324,7 +329,7 @@
     $('addWidgetTile').addEventListener('click', openWidgetPicker);
   }
 
-  function widgetCard(w) {
+  function widgetCard(w, index) {
     const meta = W.TYPES.find(t => t.type === w.type) || { icon: 'fa-puzzle-piece' };
     const menu =
       '<div class="widget-menu hidden" data-menu-for="' + U.esc(w.id) + '">' +
@@ -338,9 +343,9 @@
       '<button data-waction="duplicate"><i class="fa-solid fa-copy" aria-hidden="true"></i> Duplica</button>' +
       '<button data-waction="remove"><i class="fa-solid fa-trash" aria-hidden="true"></i> Rimuovi</button></div>';
 
-    return '<section class="widget size-' + U.esc(w.size || 'md') + '" data-widget-id="' + U.esc(w.id) + '">' +
+    return '<section class="widget size-' + U.esc(w.size || 'md') + '" data-widget-id="' + U.esc(w.id) + '" style="--i:' + (index || 0) + '">' +
       '<div class="widget-head">' +
-      '<span class="widget-drag" draggable="true" data-drag-widget="' + U.esc(w.id) + '" title="Trascina per riordinare"><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i></span>' +
+      '<span class="widget-drag" data-drag-widget="' + U.esc(w.id) + '" title="Tieni premuto e trascina per riordinare"><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i></span>' +
       '<span class="widget-icon">' + W.icon(meta.icon) + '</span>' +
       '<span class="widget-title">' + U.esc(w.title) + '</span>' +
       '<button class="widget-menu-btn" data-wk-menu="' + U.esc(w.id) + '" title="Opzioni"><i class="fa-solid fa-ellipsis" aria-hidden="true"></i></button>' +
@@ -364,16 +369,54 @@
   /* ---------------- modals ---------------- */
   function openModal(html, wide) {
     closeModal();
+    $('modalRoot').innerHTML = '';
     const backdrop = document.createElement('div');
     backdrop.className = 'modal-backdrop';
     backdrop.innerHTML = '<div class="modal' + (wide ? ' wide' : '') + '" role="dialog" aria-modal="true">' + html + '</div>';
     $('modalRoot').appendChild(backdrop);
     modalEl = backdrop.querySelector('.modal');
-    backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) closeModal(); });
-    modalEl.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', closeModal));
+    backdrop.addEventListener('pointerdown', (e) => { if (e.target === backdrop) closeModal(true); });
+    modalEl.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', () => closeModal(true)));
+    wireSheetSwipe(backdrop, modalEl);
     return modalEl;
   }
-  function closeModal() { $('modalRoot').innerHTML = ''; modalEl = null; }
+  function closeModal(animated) {
+    const root = $('modalRoot');
+    const el = modalEl;
+    modalEl = null;
+    if (!el || !el.parentNode) { root.innerHTML = ''; return; }
+    if (animated && !U.reduceMotion()) {
+      el.parentNode.classList.add('closing');
+      setTimeout(() => { if (el.parentNode === root) el.parentNode.remove(); }, 180);
+    } else el.parentNode.remove();
+  }
+  function wireSheetSwipe(backdrop, modal) {
+    if (!window.matchMedia || !window.matchMedia('(pointer: coarse)').matches) return;
+    const head = modal.querySelector('.modal-head');
+    if (!head) return;
+    let start = null;
+    head.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('button')) return;
+      start = { id: e.pointerId, x: e.clientX, y: e.clientY, dy: 0 };
+    });
+    head.addEventListener('pointermove', (e) => {
+      if (!start || e.pointerId !== start.id) return;
+      start.dy = e.clientY - start.y;
+      if (start.dy > 6 && Math.abs(e.clientX - start.x) < start.dy) {
+        e.preventDefault();
+        modal.style.transform = 'translateY(' + start.dy + 'px)';
+      }
+    }, { passive: false });
+    const end = () => {
+      if (!start) return;
+      const drop = start.dy;
+      start = null;
+      modal.style.transform = '';
+      if (drop > 80) closeModal(true);
+    };
+    head.addEventListener('pointerup', end);
+    head.addEventListener('pointercancel', end);
+  }
   function modalHead(title) {
     return '<div class="modal-head"><h2>' + U.esc(title) + '</h2><button class="modal-close" data-modal-close aria-label="Chiudi"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>';
   }
@@ -570,7 +613,7 @@
           return;
         }
         parent.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
-        if (parent.id === 'segTheme') s.theme = b.dataset.value; else s.density = b.dataset.value;
+        if (parent.id === 'segTheme') { s.theme = b.dataset.value; themeTransition(); } else s.density = b.dataset.value;
         Store.markDirty(); applyState(); renderPage();
       }));
       host.querySelectorAll('[data-accent]').forEach(b => b.addEventListener('click', () => {
@@ -683,8 +726,9 @@
     openModal(modalHead('Come funziona OpenStart') +
       '<div class="modal-body"><p style="font-size:13px;line-height:1.7;margin-top:0">' +
       '<i class="fa-solid fa-file" aria-hidden="true"></i> <strong>Pagine</strong>: usa la barra laterale per creare, rinominare (doppio clic) ed eliminare pagine.<br>' +
-      '<i class="fa-solid fa-puzzle-piece" aria-hidden="true"></i> <strong>Widget</strong>: aggiungili con il pulsante Widget, trascinali dalla maniglia per riordinarli e usa il menu Opzioni per dimensioni, duplicazione e rimozione.<br>' +
-      '<i class="fa-solid fa-bookmark" aria-hidden="true"></i> <strong>Collegamenti</strong>: clicca il pulsante Aggiungi, clic destro per modificarli, trascinali per riordinarli.<br>' +
+      '<i class="fa-solid fa-puzzle-piece" aria-hidden="true"></i> <strong>Widget</strong>: aggiungili con il pulsante Widget, trascinali dalla maniglia (tieni premuto su smartphone) per riordinarli e usa il menu Opzioni per dimensioni, duplicazione e rimozione.<br>' +
+      '<i class="fa-solid fa-bookmark" aria-hidden="true"></i> <strong>Collegamenti</strong>: clicca il pulsante Aggiungi; modificali con il clic destro o con la matita, trascinali per riordinarli (pressione prolungata al tatto).<br>' +
+      '<i class="fa-solid fa-mobile-screen" aria-hidden="true"></i> <strong>Su smartphone</strong>: apri la barra laterale scorrendo dal bordo sinistro, chiudila con uno swipe o toccando fuori; trascina i modali verso il basso per chiuderli.<br>' +
       '<i class="fa-solid fa-key" aria-hidden="true"></i> <strong>Codice</strong>: lo trovi nella sidebar e in Impostazioni, scheda Dati. Ti serve per accedere da un altro dispositivo.<br>' +
       '<i class="fa-solid fa-rotate" aria-hidden="true"></i> <strong>Sincronizzazione</strong>: le modifiche vengono salvate automaticamente su Supabase; se sei offline restano nel browser e vengono inviate alla riconnessione.' +
       '</p></div>');
@@ -708,6 +752,7 @@
     $('app').classList.add('hidden');
     $('shareView').classList.remove('hidden');
     $('shareTitle').textContent = 'Caricamento…';
+    $('shareGrid').className = 'widget-grid animate-in';
     $('shareGrid').innerHTML = '';
     try {
       const row = await API.getShare(slug);
@@ -715,9 +760,9 @@
       const data = row.data || {};
       $('shareTitle').textContent = row.title || data.name || 'Pagina condivisa';
       const widgets = Array.isArray(data.widgets) ? data.widgets : [];
-      $('shareGrid').innerHTML = widgets.map(w => {
+      $('shareGrid').innerHTML = widgets.map((w, i) => {
         const meta = W.TYPES.find(t => t.type === w.type) || { icon: 'fa-puzzle-piece' };
-        return '<section class="widget size-' + U.esc(w.size || 'md') + '">' +
+        return '<section class="widget size-' + U.esc(w.size || 'md') + '" style="--i:' + i + '">' +
           '<div class="widget-head"><span class="widget-icon">' + W.icon(meta.icon) + '</span><span class="widget-title">' + U.esc(w.title) + '</span></div>' +
           '<div class="widget-body">' + W.renderBody(w, true) + '</div></section>';
       }).join('') || '<p class="hint">Questa pagina non contiene widget.</p>';
@@ -729,6 +774,19 @@
   }
 
   /* ---------------- events ---------------- */
+  function setSidebar(open) {
+    const isOpen = !!open;
+    $('sidebar').classList.toggle('open', isOpen);
+    document.body.classList.toggle('sidebar-open', isOpen);
+    if (isOpen) U.vibrate(8);
+  }
+  function themeTransition() {
+    if (U.reduceMotion()) return;
+    document.body.classList.add('theme-switching');
+    clearTimeout(themeTransition._timer);
+    themeTransition._timer = setTimeout(() => document.body.classList.remove('theme-switching'), 380);
+  }
+
   function bindGlobal() {
     document.querySelectorAll('[data-ob]').forEach(b => b.addEventListener('click', () => showOb(b.dataset.ob)));
 
@@ -751,7 +809,8 @@
 
     document.addEventListener('os:savestate', (e) => setSaveState(e.detail.status, e.detail.message));
 
-    $('menuToggle').addEventListener('click', () => $('sidebar').classList.toggle('open'));
+    $('menuToggle').addEventListener('click', () => setSidebar(!$('sidebar').classList.contains('open')));
+    $('sidebarBackdrop').addEventListener('click', () => setSidebar(false));
     $('sidebarToggle').addEventListener('click', () => {
       Store.state.sidebarCollapsed = !Store.state.sidebarCollapsed;
       Store.markDirty();
@@ -759,6 +818,13 @@
     });
     $('addPageBtn').addEventListener('click', addPage);
     $('pagesList').addEventListener('click', (e) => {
+      const rename = e.target.closest('[data-rename-page]');
+      if (rename) {
+        e.stopPropagation();
+        const page = Store.state.pages.find(p => p.id === rename.dataset.renamePage);
+        if (page) openPageNameModal(page);
+        return;
+      }
       const del = e.target.closest('[data-del-page]');
       if (del) {
         e.stopPropagation();
@@ -772,34 +838,23 @@
       if (item) {
         Store.state.activePageId = item.dataset.pageId;
         Store.markDirty(); renderAll();
-        $('sidebar').classList.remove('open');
+        setSidebar(false);
       }
     });
     $('pagesList').addEventListener('dblclick', (e) => {
+      if (e.target.closest('button')) return;
       const item = e.target.closest('[data-page-id]');
       if (!item) return;
       const page = Store.state.pages.find(p => p.id === item.dataset.pageId);
-      const name = prompt('Nuovo nome della pagina', page.name);
-      if (name && name.trim()) { page.name = name.trim().slice(0, 40); Store.markDirty(); renderAll(); }
+      if (page) openPageNameModal(page);
     });
-    let dragPageId = null;
-    $('pagesList').addEventListener('dragstart', (e) => {
+    $('pagesList').addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
       const item = e.target.closest('[data-page-id]');
-      if (!item) return;
-      dragPageId = item.dataset.pageId;
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    $('pagesList').addEventListener('dragover', (e) => { if (e.target.closest('[data-page-id]')) e.preventDefault(); });
-    $('pagesList').addEventListener('drop', (e) => {
-      const target = e.target.closest('[data-page-id]');
-      if (!target || !dragPageId) return;
+      if (!item || e.target !== item) return;
       e.preventDefault();
-      const from = Store.state.pages.findIndex(p => p.id === dragPageId);
-      const to = Store.state.pages.findIndex(p => p.id === target.dataset.pageId);
-      if (from < 0 || to < 0 || from === to) return;
-      const [moved] = Store.state.pages.splice(from, 1);
-      Store.state.pages.splice(to, 0, moved);
-      dragPageId = null; Store.markDirty(); renderPages();
+      Store.state.activePageId = item.dataset.pageId;
+      Store.markDirty(); renderAll(); setSidebar(false);
     });
 
     $('pageTitle').addEventListener('change', () => {
@@ -848,45 +903,37 @@
       if (!e.target.closest('.widget-menu')) document.querySelectorAll('.widget-menu').forEach(m => m.classList.add('hidden'));
     });
 
-    let dragWidgetId = null;
-    $('widgetGrid').addEventListener('dragstart', (e) => {
-      const handle = e.target.closest('[data-drag-widget]');
-      if (!handle) return;
-      dragWidgetId = handle.dataset.dragWidget;
-      const card = handle.closest('.widget');
-      card.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', 'widget:' + dragWidgetId);
-    });
-    $('widgetGrid').addEventListener('dragover', (e) => {
-      const card = e.target.closest('.widget');
-      if (!card || !dragWidgetId) return;
-      e.preventDefault();
-      document.querySelectorAll('.widget.drag-over').forEach(x => x.classList.remove('drag-over'));
-      card.classList.add('drag-over');
-    });
-    $('widgetGrid').addEventListener('drop', (e) => {
-      const card = e.target.closest('.widget');
-      if (!card || !dragWidgetId) return;
-      e.preventDefault();
-      const page = Store.activePage();
-      const from = page.widgets.findIndex(w => w.id === dragWidgetId);
-      const to = page.widgets.findIndex(w => w.id === card.dataset.widgetId);
-      if (from >= 0 && to >= 0 && from !== to) {
-        const [moved] = page.widgets.splice(from, 1);
-        page.widgets.splice(to, 0, moved);
-        Store.markDirty();
-      }
-      dragWidgetId = null;
-      renderPage();
-    });
-    $('widgetGrid').addEventListener('dragend', () => {
-      dragWidgetId = null;
-      document.querySelectorAll('.widget.dragging, .widget.drag-over').forEach(x => x.classList.remove('dragging', 'drag-over'));
-    });
+    // Riordino universale: mouse, penna e dito (pressione prolungata). Niente drag HTML5.
+    if (window.OS_SORTABLE) {
+      window.OS_SORTABLE.create($('pagesList'), {
+        item: '.page-item',
+        delay: 160,
+        onReorder(from, to) {
+          if (from === to) return;
+          const pages = Store.state.pages;
+          const [moved] = pages.splice(from, 1);
+          pages.splice(to, 0, moved);
+          Store.markDirty(); renderPages();
+        }
+      });
+      window.OS_SORTABLE.create($('widgetGrid'), {
+        item: '.widget',
+        handle: '.widget-drag',
+        delay: 200,
+        onReorder(from, to) {
+          if (from === to) return;
+          const page = Store.activePage();
+          const [moved] = page.widgets.splice(from, 1);
+          page.widgets.splice(to, 0, moved);
+          Store.markDirty(); renderPage(false);
+        }
+      });
+    }
 
     $('themeToggle').addEventListener('click', () => {
+      themeTransition();
       Store.state.theme = Store.state.theme === 'dark' ? 'light' : 'dark';
+      U.vibrate(8);
       Store.markDirty(); applyState();
     });
     $('userBtn').addEventListener('click', (e) => { e.stopPropagation(); $('userMenu').classList.toggle('hidden'); });
@@ -903,7 +950,7 @@
       if (item.dataset.user === 'logout') logout();
     });
     document.querySelectorAll('[data-side]').forEach(b => b.addEventListener('click', () => {
-      $('sidebar').classList.remove('open');
+      setSidebar(false);
       if (b.dataset.side === 'settings') openSettings('general');
       if (b.dataset.side === 'backup') openBackup();
       if (b.dataset.side === 'help') openHelp();
@@ -915,19 +962,93 @@
       if (!e.target.closest('.widget-menu') && !e.target.closest('[data-wk-menu]')) document.querySelectorAll('.widget-menu').forEach(m => m.classList.add('hidden'));
     });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') { closeModal(); document.querySelectorAll('.widget-menu, .user-menu').forEach(m => m.classList.add('hidden')); }
+      if (e.key === 'Escape') {
+        closeModal(true);
+        setSidebar(false);
+        document.querySelectorAll('.widget-menu, .user-menu').forEach(m => m.classList.add('hidden'));
+      }
     });
+
+    // Ripple leggero sui pulsanti, con rimozione automatica a fine animazione.
+    document.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      const btn = e.target.closest('.btn, .pill-btn, .icon-btn, .mini-add, .link-add, .segmented button, .tab, .timer-controls button, .swatch');
+      if (!btn || btn.disabled) return;
+      const r = btn.getBoundingClientRect();
+      const span = document.createElement('span');
+      span.className = 'ripple';
+      span.style.left = (e.clientX - r.left) + 'px';
+      span.style.top = (e.clientY - r.top) + 'px';
+      btn.appendChild(span);
+      span.addEventListener('animationend', () => span.remove(), { once: true });
+    }, { passive: true });
+
+    // Switch laterale: apri dal bordo sinistro, chiudi con uno swipe sulla sidebar.
+    let edge = null;
+    document.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' || e.target.closest('.modal-backdrop')) return;
+      const sidebar = $('sidebar');
+      const isOpen = sidebar.classList.contains('open');
+      const fromEdge = !isOpen && e.clientX <= 24;
+      const fromSidebar = isOpen && !!e.target.closest('.sidebar') && !e.target.closest('.page-item') && !e.target.closest('button');
+      if (!fromEdge && !fromSidebar) return;
+      edge = { id: e.pointerId, x: e.clientX, y: e.clientY, mode: fromEdge ? 'open' : 'close', moved: false };
+    });
+    document.addEventListener('pointermove', (e) => {
+      if (!edge || e.pointerId !== edge.id) return;
+      const dx = e.clientX - edge.x;
+      const dy = e.clientY - edge.y;
+      if (Math.abs(dy) > Math.abs(dx)) { edge = null; return; }
+      if (Math.abs(dx) > 8) edge.moved = true;
+      if (!edge.moved) return;
+      e.preventDefault();
+      const progress = edge.mode === 'open' ? U.clamp(dx / 246, 0, 1) : 1 - U.clamp(-dx / 246, 0, 1);
+      $('sidebar').style.transform = 'translateX(' + ((progress - 1) * 100) + '%)';
+      $('sidebarBackdrop').style.opacity = String(progress * .9);
+    }, { passive: false });
+    const endSwipe = (e) => {
+      if (!edge || e.pointerId !== edge.id) return;
+      const dx = e.clientX - edge.x;
+      const mode = edge.mode;
+      const moved = edge.moved;
+      edge = null;
+      $('sidebar').style.transform = '';
+      $('sidebarBackdrop').style.opacity = '';
+      if (!moved) return;
+      if (mode === 'open' && dx > 60) setSidebar(true);
+      if (mode === 'close' && dx < -60) setSidebar(false);
+    };
+    document.addEventListener('pointerup', endSwipe);
+    document.addEventListener('pointercancel', endSwipe);
   }
 
-  function addPage() {
-    const name = prompt('Nome della nuova pagina', 'Nuova pagina');
-    if (!name || !name.trim()) return;
-    const icons = ['fa-file', 'fa-star', 'fa-music', 'fa-gamepad', 'fa-book', 'fa-cart-shopping', 'fa-person-running', 'fa-lightbulb'];
-    const page = { id: U.uid('p'), name: name.trim().slice(0, 40), icon: icons[Store.state.pages.length % icons.length], columns: 12, widgets: [] };
-    Store.state.pages.push(page);
-    Store.state.activePageId = page.id;
-    Store.markDirty(); renderAll();
-    toast('Pagina creata', 'ok');
+  function addPage() { openPageNameModal(null); }
+
+  function openPageNameModal(page) {
+    const creating = !page;
+    openModal(modalHead(creating ? 'Nuova pagina' : 'Rinomina pagina') +
+      '<div class="modal-body"><div class="form-row"><label>Nome della pagina</label>' +
+      '<input id="pgName" type="text" maxlength="40" value="' + U.esc(creating ? '' : page.name) + '" placeholder="Es. Lavoro" autocomplete="off" /></div></div>' +
+      '<div class="modal-foot"><button class="btn btn-ghost" data-modal-close>Annulla</button>' +
+      '<button class="btn btn-primary" id="pgSave">' + (creating ? 'Crea' : 'Salva') + '</button></div>');
+    const input = $('pgName');
+    setTimeout(() => { input.focus(); input.select(); }, 60);
+    const save = () => {
+      const name = (input.value || '').trim().slice(0, 40);
+      if (name.length < 2) { toast('Inserisci un nome di almeno 2 caratteri', 'err'); return; }
+      if (creating) {
+        const icons = ['fa-file', 'fa-star', 'fa-music', 'fa-gamepad', 'fa-book', 'fa-cart-shopping', 'fa-person-running', 'fa-lightbulb'];
+        const fresh = { id: U.uid('p'), name: name, icon: icons[Store.state.pages.length % icons.length], columns: 12, widgets: [] };
+        Store.state.pages.push(fresh);
+        Store.state.activePageId = fresh.id;
+      } else page.name = name;
+      closeModal();
+      Store.markDirty(); renderAll();
+      U.vibrate(12);
+      toast(creating ? 'Pagina creata' : 'Pagina rinominata', 'ok');
+    };
+    $('pgSave').addEventListener('click', save);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } });
   }
 
   /* ---------------- boot ---------------- */
@@ -957,7 +1078,7 @@
     }
   }
 
-  Object.assign(APP, { openWidgetPicker, openLinkEditor: APP.openLinkEditor, boot });
+  Object.assign(APP, { openWidgetPicker, openLinkEditor: APP.openLinkEditor, openPageNameModal, boot });
   window.OS_APP = APP;
   boot();
 })();

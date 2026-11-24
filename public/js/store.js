@@ -139,7 +139,9 @@
 
     markDirty() {
       if (!this.code || !this.state) return;
-      this.writeCache();
+      // Scritture locali raggruppate: digitare nelle note non serializza ad ogni tasto.
+      clearTimeout(this._cacheTimer);
+      this._cacheTimer = setTimeout(() => this.writeCache(), 160);
       document.dispatchEvent(new CustomEvent('os:savestate', { detail: { status: 'saving' } }));
       clearTimeout(this._saveTimer);
       this._saveTimer = setTimeout(() => this.flush(), 800);

@@ -62,9 +62,14 @@
     return '<div class="empty-widget"><span class="big">' + icon(name) + '</span><span>' + U.esc(text) + '</span></div>';
   }
 
-  function favicon(url) {
+  function favicon(url, initial, color) {
     const src = U.favicon(url);
-    return src ? '<img class="link-favicon" src="' + U.esc(src) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '';
+    const style = ' style="--tile:' + U.esc(color || U.colorFrom(url)) + '"';
+    if (!src) return '<span class="link-icon"' + style + '>' + initial + '</span>';
+    // Nessuno sfondo sotto la favicon: se l'immagine non carica, ricompare il monogramma.
+    return '<span class="link-icon has-favicon"' + style + '>' +
+      '<img class="link-favicon" src="' + U.esc(src) + '" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">' +
+      initial + '</span>';
   }
 
   function fmtTime(sec) {
@@ -82,11 +87,14 @@
       case 'links': {
         const links = Array.isArray(c.links) ? c.links : [];
         if (!links.length && readonly) return empty('fa-bookmark', 'Nessun collegamento');
-        return '<div class="link-grid">' + links.map((l, i) =>
-          '<a class="link-tile" href="' + U.esc(U.safeExternal(l.url)) + '" target="_blank" rel="noopener noreferrer" data-link-index="' + i + '"' + (readonly ? ' tabindex="-1"' : ' draggable="true"') + '>' +
-          '<span class="link-icon" style="--tile:' + U.esc(l.color || U.colorFrom(l.url)) + '">' + favicon(l.url) + '<span class="link-initial">' + U.esc((l.title || '?').trim().charAt(0)) + '</span></span>' +
-          '<span class="link-title">' + U.esc(l.title) + '</span></a>'
-        ).join('') + (readonly ? '' : '<button class="link-add" data-wk="add-link" title="Aggiungi collegamento">' + icon('fa-plus') + '</button>') + '</div>';
+        return '<div class="link-grid">' + links.map((l, i) => {
+          const initial = '<span class="link-initial">' + U.esc((l.title || '?').trim().charAt(0)) + '</span>';
+          return '<div class="link-cell" data-link-index="' + i + '">' +
+            '<a class="link-tile" href="' + U.esc(U.safeExternal(l.url)) + '" target="_blank" rel="noopener noreferrer" draggable="false"' + (readonly ? ' tabindex="-1"' : '') + '>' +
+            favicon(l.url, initial, l.color) + '<span class="link-title">' + U.esc(l.title) + '</span></a>' +
+            (readonly ? '' : '<button class="link-edit" data-link-edit="' + i + '" data-no-drag title="Modifica collegamento" aria-label="Modifica collegamento">' + icon('fa-pen') + '</button>') +
+            '</div>';
+        }).join('') + (readonly ? '' : '<button class="link-add" data-wk="add-link" title="Aggiungi collegamento">' + icon('fa-plus') + '</button>') + '</div>';
       }
 
       case 'notes':
@@ -123,7 +131,7 @@
 
       case 'timer': {
         const st = timers[widget.id] || (timers[widget.id] = { remaining: (Number(c.minutes) || 25) * 60, running: false, end: 0 });
-        return '<div class="timer-display" data-timer="' + U.esc(widget.id) + '">' + fmtTime(st.remaining) + '</div>' +
+        return '<div class="timer-display" data-timer="' + U.esc(widget.id) + '"' + (st.running ? ' data-running="1"' : '') + '>' + fmtTime(st.remaining) + '</div>' +
           (readonly ? '' : '<div class="timer-controls"><button class="main" data-wk="timer-toggle">' + (st.running ? 'Pausa' : 'Avvia') + '</button><button data-wk="timer-reset">Reset</button></div>');
       }
 
@@ -164,6 +172,17 @@
     const c = widget.config;
     const q = (sel) => root.querySelector(sel);
 
+    // La favicon non ha sfondo: se la rete non la carica, torniamo al monogramma colorato.
+    root.querySelectorAll('.link-favicon').forEach(img => {
+      const failed = () => {
+        const box = img.closest('.link-icon');
+        if (box) box.classList.remove('has-favicon');
+        img.remove();
+      };
+      img.addEventListener('error', failed, { once: true });
+      if (img.complete && img.naturalWidth === 0) failed();
+    });
+
     if (readonly) {
       if (widget.type === 'weather') loadWeather(q('[data-weather-root]'), c.city);
       if (widget.type === 'feed' && c.url) loadFeed(q('[data-feed-root]'), c);
@@ -176,29 +195,28 @@
     const addLink = q('[data-wk="add-link"]');
     if (addLink) addLink.addEventListener('click', () => window.OS_APP.openLinkEditor(widget.id, null));
 
-    root.querySelectorAll('.link-favicon').forEach(img => img.addEventListener('error', () => img.remove()));
-    root.querySelectorAll('.link-tile').forEach(tile => {
-      tile.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        window.OS_APP.openLinkEditor(widget.id, Number(tile.dataset.linkIndex));
+    const linkGrid = q('.link-grid');
+    if (linkGrid && !linkGrid.dataset.sortReady) {
+      linkGrid.dataset.sortReady = '1';
+      window.OS_SORTABLE.create(linkGrid, {
+        item: '.link-cell',
+        delay: 180,
+        onReorder(from, to) {
+          if (from === to) return;
+          const [item] = c.links.splice(from, 1);
+          c.links.splice(to, 0, item);
+          dirty(); rerenderWidget(widget.id);
+        }
       });
-      tile.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('text/plain', 'link:' + widget.id + ':' + tile.dataset.linkIndex);
-        e.dataTransfer.effectAllowed = 'move';
-      });
-      tile.addEventListener('dragover', (e) => { e.preventDefault(); });
-      tile.addEventListener('drop', (e) => {
-        e.preventDefault();
-        const data = e.dataTransfer.getData('text/plain') || '';
-        const m = data.match(/^link:(.+):(\d+)$/);
-        if (!m || m[1] !== widget.id) return;
-        const from = Number(m[2]), to = Number(tile.dataset.linkIndex);
-        if (from === to) return;
-        const [item] = c.links.splice(from, 1);
-        c.links.splice(to, 0, item);
-        dirty(); rerenderWidget(widget.id);
-      });
-    });
+    }
+    root.querySelectorAll('[data-link-edit]').forEach(btn => btn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      window.OS_APP.openLinkEditor(widget.id, Number(btn.dataset.linkEdit));
+    }));
+    root.querySelectorAll('.link-cell').forEach(cell => cell.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      window.OS_APP.openLinkEditor(widget.id, Number(cell.dataset.linkIndex));
+    }));
 
     const todoForm = q('[data-wk="todo-form"]');
     if (todoForm) todoForm.addEventListener('submit', (e) => {
@@ -297,8 +315,10 @@
   }
 
   function tick() {
+    if (document.hidden) return; // nessun lavoro in background: risparmio batteria su mobile
     const state = window.OS_STORE.state || {};
-    document.querySelectorAll('[data-clock]').forEach(el => { el.textContent = U.formatClock(new Date(), state); });
+    const now = new Date();
+    document.querySelectorAll('[data-clock]').forEach(el => { el.textContent = U.formatClock(now, state); });
     document.querySelectorAll('[data-timer]').forEach(el => {
       const st = timers[el.dataset.timer];
       if (!st) return;
@@ -309,7 +329,8 @@
       el.textContent = fmtTime(st.remaining);
     });
   }
-  setInterval(tick, 250);
+  setInterval(tick, 1000);
+  document.addEventListener('visibilitychange', tick);
 
   window.OS_WIDGETS = { TYPES, make, defaults, renderBody, bindBody, tick, icon };
 })();

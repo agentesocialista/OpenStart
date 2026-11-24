@@ -14,6 +14,8 @@ Il progetto è **statico** (HTML/CSS/JavaScript vanilla, nessun framework e ness
 - Pagine laterali: creazione, rinominazione (doppio clic), eliminazione e riordino tramite trascinamento.
 - Widget: collegamenti con favicon e suggerimento automatico del titolo dall'URL, orologio, note, da fare, meteo, feed RSS, calendario, citazione, timer. Aggiunta, modifica, duplicazione, rimozione, ridimensionamento e riordino con drag & drop.
 - Aspetto: tema chiaro/scuro, 8 colori principali, sfondo monocromatico di default oppure foto online (Unsplash/URL personalizzato) o immagine caricata dal dispositivo, densità comoda/compatta, layout a 6 o 12 colonne.
+- Interazione ottimizzata anche al tatto: riordino di pagine, widget e collegamenti con long-press e conferma tattile, matita per modificare i link, swipe laterale per la barra, modali chiudibili trascinandoli verso il basso, animazioni con rispetto di `prefers-reduced-motion`.
+- Le favicon dei collegamenti non hanno sfondi: compare il monogramma colorato solo se l'immagine non è disponibile.
 - Le immagini caricate dal dispositivo restano solo nel browser: vengono compresse e salvate in `localStorage`, non su Supabase e non nei backup JSON.
 - Importazione/esportazione JSON, rimozione account, logout dal dispositivo.
 - Condivisione di una pagina tramite link pubblico in sola lettura (`?share=CODICE8`).
@@ -29,6 +31,7 @@ public/                  sito statico (publish directory di Netlify)
   js/utils.js
   js/api.js              wrapper delle RPC Supabase
   js/store.js            stato, default e salvataggio
+  js/sortable.js         riordino con Pointer Events (touch, penna, mouse)
   js/widgets.js          rendering e logica dei widget
   js/app.js              UI, modali, eventi
 netlify/functions/rss.mjs       proxy RSS ( /.netlify/functions/rss?url=… )
